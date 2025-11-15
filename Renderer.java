@@ -128,9 +128,9 @@ public class Renderer {
         float greenLinear = (float) Math.pow(color.getGreen(), 2.4) * shade;
         float blueLinear = (float) Math.pow(color.getBlue(), 2.4) * shade;
 
-        int red = (int) Math.min(Math.pow(redLinear, 1/2.4), 255);
-        int green = (int) Math.min(Math.pow(greenLinear, 1/2.4), 255);
-        int blue = (int) Math.min(Math.pow(blueLinear, 1/2.4), 255);
+        int red = (int) Math.max(255 - Math.pow(redLinear, 1/2.4), 0);
+        int green = (int) Math.max(255 - Math.pow(greenLinear, 1/2.4), 0);
+        int blue = (int) Math.max(255 - Math.pow(blueLinear, 1/2.4), 0);
 
         return new Color(red, green, blue);
     }

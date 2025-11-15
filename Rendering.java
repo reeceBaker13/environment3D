@@ -14,16 +14,15 @@ public class Rendering {
     private List<Triangle> terrainTris;								// List of triangles representing the map
 
     private final int terrainSize = 100;							// Side length of the map (number of squares)
-    private final double scale = 1;									// Arbitrary scale (irrelevant?)
     private final double yScale = 20;								// Vertical scale [mountain intensity]
-    private final double half = (terrainSize - 1) * scale / 2.0;	// Length of half the scaled map
+    private final double half = (terrainSize - 1) / 2.0;			// Length of half the scaled map
     
     private boolean[] highlight;									// Array of booleans on if the player is at that triangle (two/zero occupied at a time)
 
     // Camera variables
     private double heading = 3 * Math.PI / 4;						// Horizontal rotation
     private double pitch = 7 * Math.PI / 4;							// Vertical rotation
-    private double zoom = 5.0 * scale;								// Zoom (bigger the closer)
+    private double zoom = 5.0;										// Zoom (bigger the closer)
 
     private int lastMouseX = -1;									// Previous mouse x position (-1 is no mouse movement)
     private int lastMouseY = -1;									// Previous mouse y position (-1 is no mouse movement)
@@ -39,6 +38,9 @@ public class Rendering {
     
     private int moveX = 0;
     private int moveZ = 0;
+
+	// General variables
+	private final int gameSpeed = 64;								// Time between game refreshes
 
     // Constructor
     public Rendering() {
@@ -58,10 +60,10 @@ public class Rendering {
                 float shade = (float) ((heights[i][j] + 1) / 2.0);
                 Color c = new Color(shade, shade, shade);
 
-                Vertex v00 = new Vertex(i * scale - half, heights[i][j] * scale * yScale, j * scale - half);
-                Vertex v10 = new Vertex((i + 1) * scale - half, heights[i + 1][j] * scale * yScale, j * scale - half);
-                Vertex v01 = new Vertex(i * scale - half, heights[i][j + 1] * scale * yScale, (j + 1) * scale - half);
-                Vertex v11 = new Vertex((i + 1) * scale - half, heights[i + 1][j + 1] * scale * yScale, (j + 1) * scale - half);
+                Vertex v00 = new Vertex(i - half, heights[i][j] * yScale, j - half);
+                Vertex v10 = new Vertex((i + 1) - half, heights[i + 1][j] * yScale, j - half);
+                Vertex v01 = new Vertex(i - half, heights[i][j + 1] * yScale, (j + 1) - half);
+                Vertex v11 = new Vertex((i + 1) - half, heights[i + 1][j + 1] * yScale, (j + 1) - half);
 
                 tris.add(new Triangle(v00, v10, v01, c));
                 tris.add(new Triangle(v10, v11, v01, c));
@@ -94,7 +96,7 @@ public class Rendering {
         // panel to display render results
         JPanel renderPanel = new JPanel() {
             
-            Timer movementTimer = new Timer(32, e -> {
+            Timer movementTimer = new Timer(gameSpeed, e -> {
                 moveX = 0;
                 moveZ = 0;
 
@@ -104,8 +106,8 @@ public class Rendering {
                 if (dPressed) moveX -= 1;
 
                 if (moveX != 0 || moveZ != 0) {
-                    playerX += moveX * scale;
-                    playerZ += moveZ * scale;
+                    playerX += moveX;
+                    playerZ += moveZ;
                     repaint();
                 }
 
@@ -148,8 +150,8 @@ public class Rendering {
 
                 // Mouse wheel for zoom
                 addMouseWheelListener(e -> {
-                    zoom += -e.getPreciseWheelRotation() * 0.75 * scale;
-                    zoom = Math.max(1 * scale, Math.min(zoom, 50 * scale)); // clamp
+                    zoom += -e.getPreciseWheelRotation() * 0.75;
+                    zoom = Math.max(1, Math.min(zoom, 50)); // clamp
                     repaint();
                 });
 
@@ -209,8 +211,8 @@ public class Rendering {
                 // Colouring the player position triangle
                 Arrays.fill(highlight, false);
 
-                int i = (int)Math.floor((playerX + half) / scale);
-                int j = (int)Math.floor((playerZ + half) / scale);
+                int i = (int)Math.floor(playerX + half);
+                int j = (int)Math.floor(playerZ + half);
 
                 if (i >= 0 && j >= 0 && i < terrainSize - 1 && j < terrainSize - 1) {
                     int idx = i * (terrainSize - 1) + j;
