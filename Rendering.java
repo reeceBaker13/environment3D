@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
@@ -17,19 +18,28 @@ public class Rendering {
 
     private int playerX = 0;
     private int playerZ = 0;
+    
+    private int moveX = 0;
+    private int moveZ = 0;
 
     private List<Triangle> terrainTris;
 
+    private boolean[] highlight;
+    private final int terrainSize = 50;
+    private final double scale = 50;
+    private final double half = (terrainSize - 1) * scale / 2.0;
+
+
     public Rendering() {
-        terrainTris = generateTriangles(50);
+        terrainTris = generateTriangles(terrainSize);
+        highlight = new boolean[terrainTris.size()];
+
     }
 
     public List<Triangle> generateTriangles(int size) {
         double[][] heights = generateNoise(size);
 
-        double scale = 50;
         double yScale = 10;
-        double half = (size - 1) * scale / 2.0;
 
         List<Triangle> tris = new ArrayList<>();
         for (int i = 0; i < size - 1; i++) {
@@ -43,7 +53,7 @@ public class Rendering {
                 Vertex v11 = new Vertex((i + 1) * scale - half, heights[i + 1][j + 1] * scale * yScale, (j + 1) * scale - half);
 
                 tris.add(new Triangle(v00, v10, v01, c));
-                tris.add(new Triangle(v11, v10, v01, c));
+                tris.add(new Triangle(v10, v11, v01, c));
             }
         }
 
@@ -73,6 +83,9 @@ public class Rendering {
         // panel to display render results
         JPanel renderPanel = new JPanel() {
             {
+                setFocusable(true);
+                requestFocusInWindow(true);
+
                 addMouseMotionListener(new MouseMotionAdapter() {
                     public void mouseDragged(MouseEvent e) {
                         if (lastMouseX != -1 && lastMouseY != -1) {
@@ -110,31 +123,74 @@ public class Rendering {
                     zoom = Math.max(0.1, Math.min(zoom, 5)); // clamp
                     repaint();
                 });
+
+                // Key listener movement
+                // Key bindings for movement
+                InputMap im = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+                ActionMap am = getActionMap();
+
+                im.put(KeyStroke.getKeyStroke("W"), "moveForward");
+                im.put(KeyStroke.getKeyStroke("released W"), "stop");
+                im.put(KeyStroke.getKeyStroke("S"), "moveBack");
+                im.put(KeyStroke.getKeyStroke("released S"), "stop");
+                im.put(KeyStroke.getKeyStroke("A"), "moveLeft");
+                im.put(KeyStroke.getKeyStroke("released A"), "stop");
+                im.put(KeyStroke.getKeyStroke("D"), "moveRight");
+                im.put(KeyStroke.getKeyStroke("released D"), "stop");
+
+                am.put("moveForward", new AbstractAction() {
+                    public void actionPerformed(ActionEvent e) {
+                        moveX = 0;
+                        moveZ = 1;
+                        playerX += moveX * scale;
+                        playerZ += moveZ * scale;
+                        repaint();
+                    }
+                });
+
+                am.put("moveBack", new AbstractAction() {
+                    public void actionPerformed(ActionEvent e) {
+                        moveX = 0;
+                        moveZ = -1;
+                        playerX += moveX * scale;
+                        playerZ += moveZ * scale;
+                        repaint();
+                    }
+                });
+
+                am.put("moveLeft", new AbstractAction() {
+                    public void actionPerformed(ActionEvent e) {
+                        moveX = 1;
+                        moveZ = 0;
+                        playerX += moveX * scale;
+                        playerZ += moveZ * scale;
+                        repaint();
+                    }
+                });
+
+                am.put("moveRight", new AbstractAction() {
+                    public void actionPerformed(ActionEvent e) {
+                        moveX = -1;
+                        moveZ = 0;
+                        playerX += moveX * scale;
+                        playerZ += moveZ * scale;
+                        repaint();
+                    }
+                });
+
+                am.put("stop", new AbstractAction() {
+                    public void actionPerformed(ActionEvent e) {
+                        moveX = 0;
+                        moveZ = 0;
+                    }
+                });
+
             }
 
             public void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setColor(Color.BLACK);
                 g2.fillRect(0, 0, getWidth(), getHeight());
-
-                List<Triangle> tris = generateTriangles(10);
-                // List<Triangle> tris = new ArrayList<>();
-                // tris.add(new Triangle(new Vertex(100, 100, 100),
-                //                         new Vertex(-100, -100, 100),
-                //                         new Vertex(-100, 100, -100),
-                //                         Color.WHITE));
-                // tris.add(new Triangle(new Vertex(100, 100, 100),
-                //                         new Vertex(-100, -100, 100),
-                //                         new Vertex(100, -100, -100),
-                //                         Color.RED));
-                // tris.add(new Triangle(new Vertex(-100, 100, -100),
-                //                         new Vertex(100, -100, -100),
-                //                         new Vertex(100, 100, 100),
-                //                         Color.GREEN));
-                // tris.add(new Triangle(new Vertex(-100, 100, -100),
-                //                         new Vertex(100, -100, -100),
-                //                         new Vertex(-100, -100, 100),
-                //                         Color.BLUE));
 
                 double headingRad = heading;
                 Matrix3 headingTransform = new Matrix3(new double[] {
@@ -148,43 +204,38 @@ public class Rendering {
                     0, Math.cos(pitch), Math.sin(pitch),
                     0, -Math.sin(pitch), Math.cos(pitch)
                 });
-                Matrix3 scale = new Matrix3(new double[] {
+                Matrix3 scaleMatrix = new Matrix3(new double[] {
                     zoom, 0, 0,
                     0, zoom, 0,
                     0, 0, zoom
                 });
-                Matrix3 transform = headingTransform.multiply(pitchTransform).multiply(scale);
+                Matrix3 translationMatrix = new Matrix3(new double[] {
+                    1, 0, playerX,
+                    0, 1, playerZ,
+                    0, 0, 1
+                });
+                Matrix3 transform = headingTransform.multiply(pitchTransform).multiply(scaleMatrix).multiply(translationMatrix);
+
+                // Colouring the player position triangle
+                Arrays.fill(highlight, false);
+
+                int i = (int)Math.floor((playerX + half) / scale);
+                int j = (int)Math.floor((playerZ + half) / scale);
+
+                if (i >= 0 && j >= 0 && i < terrainSize - 1 && j < terrainSize - 1) {
+                    int idx = i * (terrainSize - 1) + j;
+                    highlight[idx * 2] = true;
+                    highlight[idx * 2 + 1] = true;
+                }
+
 
                 Renderer renderer = new Renderer();
 
-                BufferedImage img = renderer.render(terrainTris, transform, getWidth(), getHeight());
+                BufferedImage img = renderer.render(terrainTris, transform, getWidth(), getHeight(), highlight, playerX, playerZ);
 
                 g2.drawImage(img, 0, 0, null);
             }
         };
-
-        // NEED TO ADD PLAYER, PLAYER MOVEMENT ETC
-        // renderPanel.setFocusable(true); // must receive keyboard focus
-        // renderPanel.requestFocusInWindow(); // request focus on start
-
-        // renderPanel.addKeyListener(new KeyAdapter() {
-        //     @Override
-        //     public void keyPressed(KeyEvent e) {
-        //         int code = e.getKeyCode();
-        //         switch (code) {
-        //             case KeyEvent.VK_W: // move forward
-        //                 // adjust camera or translate terrain
-        //                 break;
-        //             case KeyEvent.VK_S: // move backward
-        //                 break;
-        //             case KeyEvent.VK_A: // move left
-        //                 break;
-        //             case KeyEvent.VK_D: // move right
-        //                 break;
-        //         }
-        //         renderPanel.repaint();
-        //     }
-        // });
 
         pane.add(renderPanel, BorderLayout.CENTER);
 
