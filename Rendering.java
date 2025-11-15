@@ -6,11 +6,12 @@ import java.util.ArrayList;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 import java.awt.event.*;
+import javax.swing.Timer;
 
 public class Rendering {
     // Movement variables
-    private double heading = 0;
-    private double pitch = 0;
+    private double heading = 3 * Math.PI / 4;
+    private double pitch = 7 * Math.PI / 4;
     private double zoom = 1.0;
 
     private int lastMouseX = -1;
@@ -18,6 +19,11 @@ public class Rendering {
 
     private int playerX = 0;
     private int playerZ = 0;
+
+    private boolean wPressed = false;
+    private boolean sPressed = false;
+    private boolean aPressed = false;
+    private boolean dPressed = false;
     
     private int moveX = 0;
     private int moveZ = 0;
@@ -82,6 +88,24 @@ public class Rendering {
 
         // panel to display render results
         JPanel renderPanel = new JPanel() {
+            
+            Timer movementTimer = new Timer(32, e -> {
+                moveX = 0;
+                moveZ = 0;
+
+                if (wPressed) moveZ += 1;
+                if (sPressed) moveZ -= 1;
+                if (aPressed) moveX += 1;
+                if (dPressed) moveX -= 1;
+
+                if (moveX != 0 || moveZ != 0) {
+                    playerX += moveX * scale;
+                    playerZ += moveZ * scale;
+                    repaint();
+                }
+
+            });
+
             {
                 setFocusable(true);
                 requestFocusInWindow(true);
@@ -124,66 +148,29 @@ public class Rendering {
                     repaint();
                 });
 
-                // Key listener movement
                 // Key bindings for movement
                 InputMap im = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
                 ActionMap am = getActionMap();
 
-                im.put(KeyStroke.getKeyStroke("W"), "moveForward");
-                im.put(KeyStroke.getKeyStroke("released W"), "stop");
-                im.put(KeyStroke.getKeyStroke("S"), "moveBack");
-                im.put(KeyStroke.getKeyStroke("released S"), "stop");
-                im.put(KeyStroke.getKeyStroke("A"), "moveLeft");
-                im.put(KeyStroke.getKeyStroke("released A"), "stop");
-                im.put(KeyStroke.getKeyStroke("D"), "moveRight");
-                im.put(KeyStroke.getKeyStroke("released D"), "stop");
+                im.put(KeyStroke.getKeyStroke("W"), "pressW");
+                im.put(KeyStroke.getKeyStroke("released W"), "releaseW");
+                im.put(KeyStroke.getKeyStroke("S"), "pressS");
+                im.put(KeyStroke.getKeyStroke("released S"), "releaseS");
+                im.put(KeyStroke.getKeyStroke("A"), "pressA");
+                im.put(KeyStroke.getKeyStroke("released A"), "releaseA");
+                im.put(KeyStroke.getKeyStroke("D"), "pressD");
+                im.put(KeyStroke.getKeyStroke("released D"), "releaseD");
 
-                am.put("moveForward", new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        moveX = 0;
-                        moveZ = 1;
-                        playerX += moveX * scale;
-                        playerZ += moveZ * scale;
-                        repaint();
-                    }
-                });
+                am.put("pressW", new AbstractAction() { public void actionPerformed(ActionEvent e) { wPressed = true; }});
+                am.put("releaseW", new AbstractAction() { public void actionPerformed(ActionEvent e) { wPressed = false; }});
+                am.put("pressS", new AbstractAction() { public void actionPerformed(ActionEvent e) { sPressed = true; }});
+                am.put("releaseS", new AbstractAction() { public void actionPerformed(ActionEvent e) { sPressed = false; }});
+                am.put("pressA", new AbstractAction() { public void actionPerformed(ActionEvent e) { aPressed = true; }});
+                am.put("releaseA", new AbstractAction() { public void actionPerformed(ActionEvent e) { aPressed = false; }});
+                am.put("pressD", new AbstractAction() { public void actionPerformed(ActionEvent e) { dPressed = true; }});
+                am.put("releaseD", new AbstractAction() { public void actionPerformed(ActionEvent e) { dPressed = false; }});
 
-                am.put("moveBack", new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        moveX = 0;
-                        moveZ = -1;
-                        playerX += moveX * scale;
-                        playerZ += moveZ * scale;
-                        repaint();
-                    }
-                });
-
-                am.put("moveLeft", new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        moveX = 1;
-                        moveZ = 0;
-                        playerX += moveX * scale;
-                        playerZ += moveZ * scale;
-                        repaint();
-                    }
-                });
-
-                am.put("moveRight", new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        moveX = -1;
-                        moveZ = 0;
-                        playerX += moveX * scale;
-                        playerZ += moveZ * scale;
-                        repaint();
-                    }
-                });
-
-                am.put("stop", new AbstractAction() {
-                    public void actionPerformed(ActionEvent e) {
-                        moveX = 0;
-                        moveZ = 0;
-                    }
-                });
+                movementTimer.start();
 
             }
 
@@ -192,13 +179,11 @@ public class Rendering {
                 g2.setColor(Color.BLACK);
                 g2.fillRect(0, 0, getWidth(), getHeight());
 
-                double headingRad = heading;
                 Matrix3 headingTransform = new Matrix3(new double[] {
                     Math.cos(heading), 0, -Math.sin(heading),
                     0, 1, 0,
                     Math.sin(heading), 0, Math.cos(heading)
                     });
-                double pitchRad = pitch;
                 Matrix3 pitchTransform = new Matrix3(new double[] {
                     1, 0, 0,
                     0, Math.cos(pitch), Math.sin(pitch),
