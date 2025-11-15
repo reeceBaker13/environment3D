@@ -9,47 +9,52 @@ import java.awt.event.*;
 import javax.swing.Timer;
 
 public class Rendering {
-    // Movement variables
-    private double heading = 3 * Math.PI / 4;
-    private double pitch = 7 * Math.PI / 4;
-    private double zoom = 1.0;
 
-    private int lastMouseX = -1;
-    private int lastMouseY = -1;
+    // Terrain variables
+    private List<Triangle> terrainTris;								// List of triangles representing the map
 
+    private final int terrainSize = 100;							// Side length of the map (number of squares)
+    private final double scale = 1;									// Arbitrary scale (irrelevant?)
+    private final double yScale = 20;								// Vertical scale [mountain intensity]
+    private final double half = (terrainSize - 1) * scale / 2.0;	// Length of half the scaled map
+    
+    private boolean[] highlight;									// Array of booleans on if the player is at that triangle (two/zero occupied at a time)
+
+    // Camera variables
+    private double heading = 3 * Math.PI / 4;						// Horizontal rotation
+    private double pitch = 7 * Math.PI / 4;							// Vertical rotation
+    private double zoom = 5.0 * scale;								// Zoom (bigger the closer)
+
+    private int lastMouseX = -1;									// Previous mouse x position (-1 is no mouse movement)
+    private int lastMouseY = -1;									// Previous mouse y position (-1 is no mouse movement)
+
+    // Player movement variables
     private int playerX = 0;
     private int playerZ = 0;
 
     private boolean wPressed = false;
     private boolean sPressed = false;
     private boolean aPressed = false;
-    private boolean dPressed = false;
+	private boolean dPressed = false;
     
     private int moveX = 0;
     private int moveZ = 0;
 
-    private List<Triangle> terrainTris;
-
-    private boolean[] highlight;
-    private final int terrainSize = 50;
-    private final double scale = 50;
-    private final double half = (terrainSize - 1) * scale / 2.0;
-
-
+    // Constructor
     public Rendering() {
-        terrainTris = generateTriangles(terrainSize);
+        terrainTris = generateTriangles(this.terrainSize);
         highlight = new boolean[terrainTris.size()];
-
     }
 
+    // Generating triangles for the map
     public List<Triangle> generateTriangles(int size) {
+        // Getting map of heights
         double[][] heights = generateNoise(size);
 
-        double yScale = 10;
-
+        // Creating 2 triangles for each square on the grid
         List<Triangle> tris = new ArrayList<>();
         for (int i = 0; i < size - 1; i++) {
-            for (int j = 0; j < size - 1; j++) {
+        	for (int j = 0; j < size - 1; j++) {
                 float shade = (float) ((heights[i][j] + 1) / 2.0);
                 Color c = new Color(shade, shade, shade);
 
@@ -143,8 +148,8 @@ public class Rendering {
 
                 // Mouse wheel for zoom
                 addMouseWheelListener(e -> {
-                    zoom += -e.getPreciseWheelRotation() * 0.1;
-                    zoom = Math.max(0.1, Math.min(zoom, 5)); // clamp
+                    zoom += -e.getPreciseWheelRotation() * 0.75 * scale;
+                    zoom = Math.max(1 * scale, Math.min(zoom, 50 * scale)); // clamp
                     repaint();
                 });
 
