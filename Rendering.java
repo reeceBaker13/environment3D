@@ -15,6 +15,55 @@ public class Rendering {
     private int lastMouseX = -1;
     private int lastMouseY = -1;
 
+    private int playerX = 0;
+    private int playerZ = 0;
+
+    private List<Triangle> terrainTris;
+
+    public Rendering() {
+        terrainTris = generateTriangles(50);
+    }
+
+    public List<Triangle> generateTriangles(int size) {
+        double[][] heights = generateNoise(size);
+
+        double scale = 50;
+        double yScale = 10;
+        double half = (size - 1) * scale / 2.0;
+
+        List<Triangle> tris = new ArrayList<>();
+        for (int i = 0; i < size - 1; i++) {
+            for (int j = 0; j < size - 1; j++) {
+                float shade = (float) ((heights[i][j] + 1) / 2.0);
+                Color c = new Color(shade, shade, shade);
+
+                Vertex v00 = new Vertex(i * scale - half, heights[i][j] * scale * yScale, j * scale - half);
+                Vertex v10 = new Vertex((i + 1) * scale - half, heights[i + 1][j] * scale * yScale, j * scale - half);
+                Vertex v01 = new Vertex(i * scale - half, heights[i][j + 1] * scale * yScale, (j + 1) * scale - half);
+                Vertex v11 = new Vertex((i + 1) * scale - half, heights[i + 1][j + 1] * scale * yScale, (j + 1) * scale - half);
+
+                tris.add(new Triangle(v00, v10, v01, c));
+                tris.add(new Triangle(v11, v10, v01, c));
+            }
+        }
+
+        return tris;
+    }
+
+    public double[][] generateNoise(int size) {
+        Noise noise = new Noise();
+        
+        double[][] array = new double[size][size];
+
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                array[i][j] = noise.noise(i * 0.05, j * 0.05, 1);
+            }
+        }
+
+        return array;
+    }
+
     public void start() {
         JFrame frame = new JFrame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -68,23 +117,24 @@ public class Rendering {
                 g2.setColor(Color.BLACK);
                 g2.fillRect(0, 0, getWidth(), getHeight());
 
-                List<Triangle> tris = new ArrayList<>();
-                tris.add(new Triangle(new Vertex(100, 100, 100),
-                                        new Vertex(-100, -100, 100),
-                                        new Vertex(-100, 100, -100),
-                                        Color.WHITE));
-                tris.add(new Triangle(new Vertex(100, 100, 100),
-                                        new Vertex(-100, -100, 100),
-                                        new Vertex(100, -100, -100),
-                                        Color.RED));
-                tris.add(new Triangle(new Vertex(-100, 100, -100),
-                                        new Vertex(100, -100, -100),
-                                        new Vertex(100, 100, 100),
-                                        Color.GREEN));
-                tris.add(new Triangle(new Vertex(-100, 100, -100),
-                                        new Vertex(100, -100, -100),
-                                        new Vertex(-100, -100, 100),
-                                        Color.BLUE));
+                List<Triangle> tris = generateTriangles(10);
+                // List<Triangle> tris = new ArrayList<>();
+                // tris.add(new Triangle(new Vertex(100, 100, 100),
+                //                         new Vertex(-100, -100, 100),
+                //                         new Vertex(-100, 100, -100),
+                //                         Color.WHITE));
+                // tris.add(new Triangle(new Vertex(100, 100, 100),
+                //                         new Vertex(-100, -100, 100),
+                //                         new Vertex(100, -100, -100),
+                //                         Color.RED));
+                // tris.add(new Triangle(new Vertex(-100, 100, -100),
+                //                         new Vertex(100, -100, -100),
+                //                         new Vertex(100, 100, 100),
+                //                         Color.GREEN));
+                // tris.add(new Triangle(new Vertex(-100, 100, -100),
+                //                         new Vertex(100, -100, -100),
+                //                         new Vertex(-100, -100, 100),
+                //                         Color.BLUE));
 
                 double headingRad = heading;
                 Matrix3 headingTransform = new Matrix3(new double[] {
@@ -107,11 +157,35 @@ public class Rendering {
 
                 Renderer renderer = new Renderer();
 
-                BufferedImage img = renderer.render(tris, transform, getWidth(), getHeight());
+                BufferedImage img = renderer.render(terrainTris, transform, getWidth(), getHeight());
 
                 g2.drawImage(img, 0, 0, null);
             }
         };
+
+        // NEED TO ADD PLAYER, PLAYER MOVEMENT ETC
+        // renderPanel.setFocusable(true); // must receive keyboard focus
+        // renderPanel.requestFocusInWindow(); // request focus on start
+
+        // renderPanel.addKeyListener(new KeyAdapter() {
+        //     @Override
+        //     public void keyPressed(KeyEvent e) {
+        //         int code = e.getKeyCode();
+        //         switch (code) {
+        //             case KeyEvent.VK_W: // move forward
+        //                 // adjust camera or translate terrain
+        //                 break;
+        //             case KeyEvent.VK_S: // move backward
+        //                 break;
+        //             case KeyEvent.VK_A: // move left
+        //                 break;
+        //             case KeyEvent.VK_D: // move right
+        //                 break;
+        //         }
+        //         renderPanel.repaint();
+        //     }
+        // });
+
         pane.add(renderPanel, BorderLayout.CENTER);
 
         frame.setSize(400, 400);
@@ -120,5 +194,7 @@ public class Rendering {
 
     public static void main(String[] args) {
         new Rendering().start();
+
+        // System.out.println(new Rendering().generateTriangles());
     }
 }
