@@ -10,7 +10,7 @@ public class Vertex {
     }
 
     public double getX() {
-        return this.x;
+		return this.x;
     }
 
     public double getY() {
