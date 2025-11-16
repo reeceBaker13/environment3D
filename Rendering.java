@@ -12,6 +12,7 @@ public class Rendering {
 
     // Terrain variables
     private List<Triangle> terrainTris;								// List of triangles representing the map
+	private double[][] heightMap;
 
     private final int terrainSize = 100;							// Side length of the map (number of squares)
     private final double yScale = 20;								// Vertical scale [mountain intensity]
@@ -31,6 +32,8 @@ public class Rendering {
     private int playerX = 0;
     private int playerZ = 0;
 
+	private double elevation = 0;
+
     private boolean wPressed = false;
     private boolean sPressed = false;
     private boolean aPressed = false;
@@ -40,7 +43,7 @@ public class Rendering {
     private int moveZ = 0;
 
 	// General variables
-	private final int gameSpeed = 64;								// Time between game refreshes
+	private final int gameSpeed = 128;								// Time between game refreshes
 
     // Constructor
     public Rendering() {
@@ -51,19 +54,19 @@ public class Rendering {
     // Generating triangles for the map
     public List<Triangle> generateTriangles(int size) {
         // Getting map of heights
-        double[][] heights = generateNoise(size);
+        heightMap = generateNoise(size);
 
         // Creating 2 triangles for each square on the grid
         List<Triangle> tris = new ArrayList<>();
         for (int i = 0; i < size - 1; i++) {
         	for (int j = 0; j < size - 1; j++) {
-                float shade = (float) ((heights[i][j] + 1) / 2.0);
+                float shade = (float) ((heightMap[i][j] + 1) / 2.0);
                 Color c = new Color(shade, shade, shade);
 
-                Vertex v00 = new Vertex(i - half, heights[i][j] * yScale, j - half);
-                Vertex v10 = new Vertex((i + 1) - half, heights[i + 1][j] * yScale, j - half);
-                Vertex v01 = new Vertex(i - half, heights[i][j + 1] * yScale, (j + 1) - half);
-                Vertex v11 = new Vertex((i + 1) - half, heights[i + 1][j + 1] * yScale, (j + 1) - half);
+                Vertex v00 = new Vertex(i - half, heightMap[i][j] * yScale, j - half);
+                Vertex v10 = new Vertex((i + 1) - half, heightMap[i + 1][j] * yScale, j - half);
+                Vertex v01 = new Vertex(i - half, heightMap[i][j + 1] * yScale, (j + 1) - half);
+                Vertex v11 = new Vertex((i + 1) - half, heightMap[i + 1][j + 1] * yScale, (j + 1) - half);
 
                 tris.add(new Triangle(v00, v10, v01, c));
                 tris.add(new Triangle(v10, v11, v01, c));
@@ -73,6 +76,7 @@ public class Rendering {
         return tris;
     }
 
+	// Generating noise map
     public double[][] generateNoise(int size) {
         Noise noise = new Noise();
         
@@ -87,6 +91,7 @@ public class Rendering {
         return array;
     }
 
+	// Main code
     public void start() {
         JFrame frame = new JFrame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -99,11 +104,41 @@ public class Rendering {
             Timer movementTimer = new Timer(gameSpeed, e -> {
                 moveX = 0;
                 moveZ = 0;
+				
+				int direction = (int) Math.round((heading % (2 * Math.PI)) / (Math.PI / 2));
 
-                if (wPressed) moveZ += 1;
-                if (sPressed) moveZ -= 1;
-                if (aPressed) moveX += 1;
-                if (dPressed) moveX -= 1;
+				switch (direction) {
+					case 4:
+					case 0:
+						if (sPressed) moveZ += 1;
+						if (wPressed) moveZ -= 1;
+						if (dPressed) moveX += 1;
+						if (aPressed) moveX -= 1;
+						break;
+					case 1:
+						if (dPressed) moveZ += 1;
+						if (aPressed) moveZ -= 1;
+						if (wPressed) moveX += 1;
+						if (sPressed) moveX -= 1;
+						break;
+					case 2:
+						if (wPressed) moveZ += 1;
+						if (sPressed) moveZ -= 1;
+						if (aPressed) moveX += 1;
+						if (dPressed) moveX -= 1;
+						break;
+					case 3:
+						if (aPressed) moveZ += 1;
+						if (dPressed) moveZ -= 1;
+						if (sPressed) moveX += 1;
+						if (wPressed) moveX -= 1;
+						break;
+				}
+
+                // if (wPressed) moveZ += 1;
+                // if (sPressed) moveZ -= 1;
+                // if (aPressed) moveX += 1;
+                // if (dPressed) moveX -= 1;
 
                 if (moveX != 0 || moveZ != 0) {
                     playerX += moveX;
@@ -114,9 +149,11 @@ public class Rendering {
             });
 
             {
+				// Getting window focus
                 setFocusable(true);
                 requestFocusInWindow(true);
 
+				// Registers mouse dragging
                 addMouseMotionListener(new MouseMotionAdapter() {
                     public void mouseDragged(MouseEvent e) {
                         if (lastMouseX != -1 && lastMouseY != -1) {
@@ -177,20 +214,20 @@ public class Rendering {
                 am.put("pressD", new AbstractAction() { public void actionPerformed(ActionEvent e) { dPressed = true; }});
                 am.put("releaseD", new AbstractAction() { public void actionPerformed(ActionEvent e) { dPressed = false; }});
 
+				// Starting player movement
                 movementTimer.start();
 
             }
 
+			// 
             public void paintComponent(Graphics g) {
+				// Initialising graphics
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setColor(Color.BLACK);
                 g2.fillRect(0, 0, getWidth(), getHeight());
 
-                Matrix3 headingTransform = new Matrix3(new double[] {
-                    Math.cos(heading), 0, -Math.sin(heading),
-                    0, 1, 0,
-                    Math.sin(heading), 0, Math.cos(heading)
-                    });
+				// Managing how the map should be transformed based on camera
+                Matrix3 headingTransform = new Matrix3(new double[] { Math.cos(heading), 0, -Math.sin(heading), 0, 1, 0, Math.sin(heading), 0, Math.cos(heading) });
                 Matrix3 pitchTransform = new Matrix3(new double[] {
                     1, 0, 0,
                     0, Math.cos(pitch), Math.sin(pitch),
@@ -208,7 +245,7 @@ public class Rendering {
                 });
                 Matrix3 transform = headingTransform.multiply(pitchTransform).multiply(scaleMatrix).multiply(translationMatrix);
 
-                // Colouring the player position triangle
+                // Updating which triangles are highlighted
                 Arrays.fill(highlight, false);
 
                 int i = (int)Math.floor(playerX + half);
@@ -218,14 +255,24 @@ public class Rendering {
                     int idx = i * (terrainSize - 1) + j;
                     highlight[idx * 2] = true;
                     highlight[idx * 2 + 1] = true;
-                }
 
+					// Getting elevation
+					elevation = heightMap[i][j] * yScale;
+                } else {
+					elevation = 0;
+				}
 
+				// Rendering triangles and image
                 Renderer renderer = new Renderer();
-
                 BufferedImage img = renderer.render(terrainTris, transform, getWidth(), getHeight(), highlight, playerX, playerZ);
-
                 g2.drawImage(img, 0, 0, null);
+
+				// Drawing elevation & coordinates
+				g2.setColor(Color.WHITE);
+				g2.setFont(new Font("Arial", Font.BOLD, 14));
+				g2.drawString("Elevation: " + String.format("%.2f", elevation), 10, 20);
+				g2.drawString("X: " + playerX + "   Z: " + playerZ, 10, 40);
+
             }
         };
 
