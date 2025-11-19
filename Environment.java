@@ -5,16 +5,17 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.awt.event.*;
 import javax.swing.Timer;
 
-public class Rendering {
+public class Environment {
 
     // Terrain variables
     private List<Triangle> terrainTris;								// List of triangles representing the map
-	private double[][] heightMap;
+	private double[][] heightMap;									// Array of heights across the map
 
-    private final int terrainSize = 100;							// Side length of the map (number of squares)
+    private final int terrainSize = 1000;							// Side length of the map (number of squares)
     private final double yScale = 20;								// Vertical scale [mountain intensity]
     private final double half = (terrainSize - 1) / 2.0;			// Length of half the scaled map
     
@@ -29,32 +30,32 @@ public class Rendering {
     private int lastMouseY = -1;									// Previous mouse y position (-1 is no mouse movement)
 
     // Player movement variables
-    private int playerX = 0;
-    private int playerZ = 0;
+    private int playerX = 0;										// X coordinate of player
+    private int playerZ = 0;										// Z coordinate of player
 
-	private double elevation = 0;
+	private double elevation = 0;									// Elevation of player
 
-    private boolean wPressed = false;
-    private boolean sPressed = false;
-    private boolean aPressed = false;
-	private boolean dPressed = false;
+    private boolean wPressed = false;								// If VK_W is pressed
+    private boolean sPressed = false;								// If VK_W is pressed
+    private boolean aPressed = false;								// If VK_W is pressed
+	private boolean dPressed = false;								// If VK_W is pressed
     
-    private int moveX = 0;
-    private int moveZ = 0;
+    private int moveX = 0;											// Players next X coordinate relative to itself
+    private int moveZ = 0;											// Players next Z coordinate relative to itself
 
 	// General variables
-	private final int gameSpeed = 128;								// Time between game refreshes
+	private final int gameSpeed = 32;								// Time between game refreshes
 
     // Constructor
-    public Rendering() {
-        terrainTris = generateTriangles(this.terrainSize);
-        highlight = new boolean[terrainTris.size()];
+    public Environment() {
+        this.terrainTris = generateTriangles(this.terrainSize);
+        this.highlight = new boolean[this.terrainTris.size()];
     }
 
     // Generating triangles for the map
     public List<Triangle> generateTriangles(int size) {
         // Getting map of heights
-        heightMap = generateNoise(size);
+        this.heightMap = generateNoise(size);
 
         // Creating 2 triangles for each square on the grid
         List<Triangle> tris = new ArrayList<>();
@@ -100,7 +101,17 @@ public class Rendering {
 
         // panel to display render results
         JPanel renderPanel = new JPanel() {
+
+			int bufferWidth;
+			int bufferHeight;
+
+			BufferedImage framebuffer;
+			int[] fbPixels;
+			float[] zBuffer;
+            Renderer renderer = new Renderer();
+
             
+			// Timer that updates player movement
             Timer movementTimer = new Timer(gameSpeed, e -> {
                 moveX = 0;
                 moveZ = 0;
@@ -135,11 +146,6 @@ public class Rendering {
 						break;
 				}
 
-                // if (wPressed) moveZ += 1;
-                // if (sPressed) moveZ -= 1;
-                // if (aPressed) moveX += 1;
-                // if (dPressed) moveX -= 1;
-
                 if (moveX != 0 || moveZ != 0) {
                     playerX += moveX;
                     playerZ += moveZ;
@@ -148,10 +154,14 @@ public class Rendering {
 
             });
 
+			// Controls and listeners
             {
 				// Getting window focus
                 setFocusable(true);
                 requestFocusInWindow(true);
+
+				// Setting background colour
+				setBackground(Color.BLACK);
 
 				// Registers mouse dragging
                 addMouseMotionListener(new MouseMotionAdapter() {
@@ -219,12 +229,18 @@ public class Rendering {
 
             }
 
-			// 
+			// Graphics and drawing environment
             public void paintComponent(Graphics g) {
 				// Initialising graphics
                 Graphics2D g2 = (Graphics2D) g;
-                g2.setColor(Color.BLACK);
-                g2.fillRect(0, 0, getWidth(), getHeight());
+				super.paintComponent(g);
+
+				// ENsuring buffer is same as panel size
+				ensureFrameBuffer();
+
+				// Clearing buffers
+				Arrays.fill(fbPixels, 0);
+				Arrays.fill(zBuffer, Float.NEGATIVE_INFINITY);
 
 				// Managing how the map should be transformed based on camera
                 Matrix3 headingTransform = new Matrix3(new double[] { Math.cos(heading), 0, -Math.sin(heading), 0, 1, 0, Math.sin(heading), 0, Math.cos(heading) });
@@ -238,12 +254,7 @@ public class Rendering {
                     0, zoom, 0,
                     0, 0, zoom
                 });
-                Matrix3 translationMatrix = new Matrix3(new double[] {
-                    1, 0, playerX,
-                    0, 1, playerZ,
-                    0, 0, 1
-                });
-                Matrix3 transform = headingTransform.multiply(pitchTransform).multiply(scaleMatrix).multiply(translationMatrix);
+                Matrix3 transform = headingTransform.multiply(pitchTransform).multiply(scaleMatrix);
 
                 // Updating which triangles are highlighted
                 Arrays.fill(highlight, false);
@@ -257,15 +268,14 @@ public class Rendering {
                     highlight[idx * 2 + 1] = true;
 
 					// Getting elevation
-					elevation = heightMap[i][j] * yScale;
+					elevation = -1 * heightMap[i][j] * yScale;
                 } else {
 					elevation = 0;
 				}
 
 				// Rendering triangles and image
-                Renderer renderer = new Renderer();
-                BufferedImage img = renderer.render(terrainTris, transform, getWidth(), getHeight(), highlight, playerX, playerZ);
-                g2.drawImage(img, 0, 0, null);
+                renderer.render(terrainTris, transform, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight, playerX, playerZ);
+                g2.drawImage(framebuffer, 0, 0, getWidth(), getHeight(), null);
 
 				// Drawing elevation & coordinates
 				g2.setColor(Color.WHITE);
@@ -274,17 +284,22 @@ public class Rendering {
 				g2.drawString("X: " + playerX + "   Z: " + playerZ, 10, 40);
 
             }
+
+			public void ensureFrameBuffer() {
+				int w = getWidth() / 4;
+				int h = getHeight() / 4;
+
+				if (framebuffer == null || framebuffer.getWidth() != w || framebuffer.getHeight() != h) {
+					framebuffer = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+					fbPixels = ((DataBufferInt) framebuffer.getRaster().getDataBuffer()).getData();
+					zBuffer = new float[w * h];
+				}
+			}
         };
 
         pane.add(renderPanel, BorderLayout.CENTER);
 
         frame.setSize(400, 400);
         frame.setVisible(true);
-    }
-
-    public static void main(String[] args) {
-        new Rendering().start();
-
-        // System.out.println(new Rendering().generateTriangles());
     }
 }
