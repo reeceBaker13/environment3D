@@ -4,59 +4,49 @@ import java.awt.image.DataBufferInt;
 import java.awt.Color;
 
 public class Renderer {
+
+    // Light
+    private static final Vertex lightDir = new Vertex(0.5, 5.0, 0.5);
+    private static final float lLen = (float) Math.sqrt(lightDir.getX()*lightDir.getX() + lightDir.getY()*lightDir.getY() + lightDir.getZ()*lightDir.getZ());
+    private static final float lx = (float) lightDir.getX() / lLen;
+    private static final float ly = (float) lightDir.getY() / lLen;
+    private static final float lz = (float) lightDir.getZ() / lLen;
     private static final float brightness = 10f;
 
-    public BufferedImage render(List<Triangle> tris, Matrix3 transform, int width, int height, boolean[] highlight, int playerX, int playerZ) {
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        float[] zBuffer = new float[img.getWidth() * img.getHeight()];
+	// Culling
+	private static final double MAX_RENDER_DISTANCE = 80;
 
-        for (int i = 0; i < zBuffer.length; i++) {
-            zBuffer[i] = Float.NEGATIVE_INFINITY;
-        }
-
+    public void render(List<Triangle> tris, Matrix3 transform, int[] pixels, float[] zBuffer, int width, int height, boolean[] highlight, int playerX, int playerZ) {
         for (int i = 0; i < tris.size(); i++) {
             Triangle t = tris.get(i);
             Color useColor = highlight[i] ? Color.RED : t.getColor();
-            this.renderTriangle(t, transform, img, zBuffer, useColor, playerX, playerZ);
+            this.renderTriangle(t, transform, pixels, width, height, zBuffer, useColor, playerX, playerZ);
         }
-
-        return img;
     }
 
     private void renderTriangle(
         Triangle t, 
         Matrix3 transform, 
-        BufferedImage img, 
+        int[] pixels,
+		int width, int height,
         float[] zBuffer,
         Color useColor,
-        int playerX,
-        int playerZ
+        int playerX, int playerZ
     ) {
-        // Getting img width and height
-        int width = img.getWidth(); // could be irrelevant and need to be different
-        int height = img.getHeight();
+		// Culling
+		float dx = (float) (t.getCentre().getX() - playerX);
+		float dz = (float) (t.getCentre().getZ() - playerZ);
+		float distanceSquared = dx * dx + dz * dz;
 
-        // Moving whole plane based on player position
-        Vertex tv1 = new Vertex(
-            t.getVertex1().getX() - playerX,
-            t.getVertex1().getY(),
-            t.getVertex1().getZ() - playerZ
-        );
-        Vertex tv2 = new Vertex(
-            t.getVertex2().getX() - playerX,
-            t.getVertex2().getY(),
-            t.getVertex2().getZ() - playerZ
-        );
-        Vertex tv3 = new Vertex(
-            t.getVertex3().getX() - playerX,
-            t.getVertex3().getY(),
-            t.getVertex3().getZ() - playerZ
-        );
+		// Skipping if too far away
+		if (distanceSquared > MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE) {
+			return;
+		}
 
         // Getting triangle vertices
-        Vertex v1 = transform.transform(tv1);
-        Vertex v2 = transform.transform(tv2);
-        Vertex v3 = transform.transform(tv3);
+        Vertex v1 = transform.transform(t.getVertex1(), playerX, playerZ);
+        Vertex v2 = transform.transform(t.getVertex2(), playerX, playerZ);
+        Vertex v3 = transform.transform(t.getVertex3(), playerX, playerZ);
 
         // Centering triangles
         v1.setX(v1.getX() + width / 2);
@@ -66,36 +56,11 @@ public class Renderer {
         v3.setX(v3.getX() + width / 2);
         v3.setY(v3.getY() + height / 2);
 
-        // Compute normal from original, untransformed triangle
-        Vertex w1 = t.getVertex1();
-        Vertex w2 = t.getVertex2();
-        Vertex w3 = t.getVertex3();
-
-        Vertex wab = new Vertex(w2.getX() - w1.getX(), w2.getY() - w1.getY(), w2.getZ() - w1.getZ());
-        Vertex wac = new Vertex(w3.getX() - w1.getX(), w3.getY() - w1.getY(), w3.getZ() - w1.getZ());
-
         // Normal
-        Vertex wnorm = new Vertex(
-            wab.getY() * wac.getZ() - wab.getZ() * wac.getY(),
-            wab.getZ() * wac.getX() - wab.getX() * wac.getZ(),
-            wab.getX() * wac.getY() - wab.getY() * wac.getX()
-        );
-
-        // Normalize
-        float len = (float) Math.sqrt(wnorm.getX()*wnorm.getX() + wnorm.getY()*wnorm.getY() + wnorm.getZ()*wnorm.getZ());
-        wnorm.setX(wnorm.getX() / len);
-        wnorm.setY(wnorm.getY() / len);
-        wnorm.setZ(wnorm.getZ() / len);
-
-        // Directional light (sun)
-        Vertex lightDir = new Vertex(0.3, 1.0, 0.2); // slightly angled sunlight
-        float lLen = (float) Math.sqrt(lightDir.getX()*lightDir.getX() + lightDir.getY()*lightDir.getY() + lightDir.getZ()*lightDir.getZ());
-        lightDir.setX(lightDir.getX() / lLen);
-        lightDir.setY(lightDir.getY() / lLen);
-        lightDir.setZ(lightDir.getZ() / lLen);
+        Vertex wnorm = t.getNormal();
 
         // Dot product for brightness
-        float angleCos = (float) Math.max(0.2, wnorm.getX()*lightDir.getX() + wnorm.getY()*lightDir.getY() + wnorm.getZ()*lightDir.getZ());
+        float angleCos = (float) Math.max(0.2, wnorm.getX() * lx + wnorm.getY() * ly + wnorm.getZ() * lz);
 
         int minX = (int) Math.max(0, Math.ceil(Math.min(v1.getX(), Math.min(v2.getX(), v3.getX()))));
         int maxX = (int) Math.min(width - 1, Math.floor(Math.max(v1.getX(), Math.max(v2.getX(), v3.getX()))));
@@ -113,7 +78,7 @@ public class Renderer {
                     float depth = (float) (b1 * v1.getZ() + b2 * v2.getZ() + b3 * v3.getZ());
                     int zIndex = y * width + x;
                     if (zBuffer[zIndex] < depth) {
-                        img.setRGB(x, y, getShade(useColor, angleCos).getRGB());
+                        pixels[zIndex] = getShade(useColor, angleCos).getRGB();
                         zBuffer[zIndex] = depth;
                     }
                 }
@@ -128,9 +93,9 @@ public class Renderer {
         float greenLinear = (float) Math.pow(color.getGreen(), 2.4) * shade;
         float blueLinear = (float) Math.pow(color.getBlue(), 2.4) * shade;
 
-        int red = (int) Math.max(255 - Math.pow(redLinear, 1/2.4), 0);
-        int green = (int) Math.max(255 - Math.pow(greenLinear, 1/2.4), 0);
-        int blue = (int) Math.max(255 - Math.pow(blueLinear, 1/2.4), 0);
+        int red = (int) Math.min(Math.max(0, (int) (350 - color.getRed() * shade)), 255);
+        int green = (int) Math.min(Math.max(0, (int) (350 - color.getGreen() * shade)), 255);
+        int blue = (int) Math.min(Math.max(0, (int) (350 - color.getBlue() * shade)), 255);
 
         return new Color(red, green, blue);
     }

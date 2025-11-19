@@ -1,2 +1,0 @@
-TO DO:
- - Make the movement controls depend on camera orientation as well [ (angle - (Math.PI / 2)) % Math.PI]

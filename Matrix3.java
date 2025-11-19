@@ -21,11 +21,18 @@ public class Matrix3 {
         return new Matrix3(result);
     }
 
-    public Vertex transform(Vertex in) {
-        return new Vertex(
-            in.getX() * this.values[0] + in.getY() * this.values[3] + in.getZ() * this.values[6],
-            in.getX() * this.values[1] + in.getY() * this.values[4] + in.getZ() * this.values[7],
-            in.getX() * this.values[2] + in.getY() * this.values[5] + in.getZ() * this.values[8]
-        );
+    public Vertex transform(Vertex in, Vertex out, double translateX, double translateZ) {
+        double x = in.getX() - translateX;
+        double y = in.getY();
+        double z = in.getZ() - translateZ;
+        out.setX(x * this.values[0] + y * this.values[3] + z * this.values[6]);
+        out.setY(x * this.values[1] + y * this.values[4] + z * this.values[7]);
+        out.setZ(x * this.values[2] + y * this.values[5] + z * this.values[8]);
+		return out;
+    }
+
+    public Vertex transform(Vertex in, double translateX, double translateZ) {
+        Vertex out = new Vertex(0, 0, 0);
+        return transform(in, out, translateX, translateZ);
     }
 }
