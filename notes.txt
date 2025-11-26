@@ -1,3 +1,0 @@
-left to right are inverted
-turning camera left seems to reveal things on right
-maybe all inverted?
