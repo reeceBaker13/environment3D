@@ -4,16 +4,18 @@ import java.util.ArrayList;
 
 public class Map {
     private final int mapSize;
-    private List<Triangle> map;
+    private final List<Triangle> map;
     private float[][] heightMap;
 
     private final float yScale;
-    private float mapCentre;
+    private final float mapCentre;
 
     public Map(int mapSize, float yScale) {
         this.mapSize = mapSize;
         this.yScale = yScale;
         this.mapCentre = (mapSize - 1) / 2.0f;
+
+        this.map = generateTriangles();
     }
     
     // Getters & Setters
@@ -28,6 +30,10 @@ public class Map {
     public float getYScale() {
         return this.yScale;
     }
+
+    public int getMapSize() { return this.mapSize; }
+
+    public List<Triangle> getMap() { return this.map; }
     
     // Generating triangles for the map
     public List<Triangle> generateTriangles() {
@@ -56,13 +62,11 @@ public class Map {
 
 	// Generating noise map
     public float[][] generateNoise(int size) {
-        Noise noise = new Noise();
-        
         float[][] array = new float[size][size];
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                array[i][j] = noise.noise(i * 0.05f, j * 0.05f, 1f);
+                array[i][j] = Noise.noise(i * 0.05f, j * 0.05f, 1f);
             }
         }
 
