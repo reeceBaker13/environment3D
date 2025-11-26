@@ -1,26 +1,21 @@
 public class Player {
-    private Vertex coords;
+    private Vector3f position;
+	private Vector3f velocity;
 
-    private boolean wPressed;
-    private boolean sPressed;
-    private boolean aPressed;
-    private boolean dPressed;
-
-    private int nextX;
-    private int nextZ;
-
-    private final double maxSpeed;
-    private double currentSpeed; //maybe be vector instead??
-    private double acceleration; //should also have a vector or something to move straight forward
+    private final float maxSpeed;
+    private float accel = 1f;
+	private float friction = 0.6f;
 
     private Camera camera;
+	private float sensitivity = 0.1f;
 
-    public Player(int x, int y, int z, double maxSpeed) {
-        this.coords = new Vertex(x, y, z);
+	private static final float EYE_HEIGHT = 2f ;
+
+    public Player(int x, int y, int z, float maxSpeed) {
+        this.position = new Vector3f(x, y, z);
+        this.velocity = new Vector3f();
 
         this.maxSpeed = maxSpeed;
-        this.currentSpeed = 0;
-        this.acceleration = 0;
 
         this.camera = new Camera();
     }
@@ -30,34 +25,60 @@ public class Player {
         return this.camera;
     }
 
-    public void setCoords(double x, double y, double z) {
-        this.coords.setX(x);
-        this.coords.setY(y);
-        this.coords.setZ(z);
+    public void setPosition(float x, float y, float z) {
+        this.position.x = x;
+        this.position.y = y;
+        this.position.z = z;
+
+		this.camera.x = x;
+		this.camera.y = y + this.EYE_HEIGHT;
+		this.camera.z = z;
     }
 
-    public Vertex getCoords() {
-        return this.coords;
+    public Vector3f getPosition() {
+        return this.position;
     }
 
-    public void setCurrentSpeed(double currentSpeed) {
-        this.currentSpeed = currentSpeed;
-    }
+	public void updatePosition(float dt, boolean W, boolean A, boolean S, boolean D, boolean space, boolean shift) {
+		float rad = (float) Math.toRadians(this.camera.yaw);
 
-    public double getCurrentSpeed() {
-        return this.currentSpeed;
-    }
+		Vector3f forward = new Vector3f((float) Math.sin(rad), 0, (float) -Math.cos(rad));
+		Vector3f right = new Vector3f((float) Math.cos(rad), 0, (float) Math.sin(rad));
 
-    public double getMaxSpeed() {
-        return this.maxSpeed;
-    }
+		Vector3f acceleration = new Vector3f(0, 0, 0);
 
-    public void setAcceleration(double acceleration) {
-        this.acceleration = acceleration;
-    }
+		if (W) acceleration.add(forward.mul(-accel));
+		if (S) acceleration.add(forward.mul(accel));
+		if (A) acceleration.add(right.mul(-accel));
+		if (D) acceleration.add(right.mul(accel));
 
-    public double getAccleration() {
-        return this.acceleration;
-    }
+		velocity.add(acceleration.mul(dt));
+
+		velocity.mul(1f - friction * dt);
+
+		position.add(velocity.mul(dt));
+
+		if (space) position.add(new Vector3f(0, 1, 0));
+		if (shift) position.add(new Vector3f(0, -1, 0));
+
+		// Camera
+		this.camera.x = this.position.x;
+		this.camera.y = this.position.y + this.EYE_HEIGHT;
+		this.camera.z = this.position.z;
+	}
+
+	public void updateY(float y) {
+		this.position.y = y;
+		this.camera.y = this.position.y + this.EYE_HEIGHT;
+	}
+
+	public void turn(float mouseDx, float mouseDy) {
+		this.camera.yaw += mouseDx * sensitivity;
+		this.camera.pitch -= mouseDy * sensitivity;
+
+		// Clamping pitch
+		if (this.camera.pitch > 230) this.camera.pitch = 230;
+		if (this.camera.pitch < 150) this.camera.pitch = 150;
+	}
 
 }

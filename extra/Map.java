@@ -1,14 +1,32 @@
+import java.awt.Color;
+import java.util.List;
+import java.util.ArrayList;
+
 public class Map {
     private final int mapSize;
-    private List<Triangles> map;
-    private double[][] this.heightMap;
+    private List<Triangle> map;
+    private float[][] heightMap;
 
-    private final double this.yScale;
-    private double mapCentre;
+    private final float yScale;
+    private float mapCentre;
 
-    public Map(int mapSize, double yScale) {
+    public Map(int mapSize, float yScale) {
         this.mapSize = mapSize;
         this.yScale = yScale;
+        this.mapCentre = (mapSize - 1) / 2.0f;
+    }
+    
+    // Getters & Setters
+    public float[][] getHeightMap() {
+        return this.heightMap;
+    }
+
+    public float getMapCentre() {
+        return this.mapCentre;
+    }
+
+    public float getYScale() {
+        return this.yScale;
     }
     
     // Generating triangles for the map
@@ -23,10 +41,10 @@ public class Map {
                 float shade = (float) ((this.heightMap[i][j] + 1) / 2.0);
                 Color c = new Color(shade, shade, shade);
 
-                Vertex v00 = new Vertex(i - half, this.heightMap[i][j] * this.yScale, j - half);
-                Vertex v10 = new Vertex((i + 1) - half, this.heightMap[i + 1][j] * this.yScale, j - half);
-                Vertex v01 = new Vertex(i - half, this.heightMap[i][j + 1] * this.yScale, (j + 1) - half);
-                Vertex v11 = new Vertex((i + 1) - half, this.heightMap[i + 1][j + 1] * this.yScale, (j + 1) - half);
+                Vector3f v00 = new Vector3f(i - this.mapCentre, this.heightMap[i][j] * this.yScale, j - this.mapCentre);
+                Vector3f v10 = new Vector3f((i + 1) - this.mapCentre, this.heightMap[i + 1][j] * this.yScale, j - this.mapCentre);
+                Vector3f v01 = new Vector3f(i - this.mapCentre, this.heightMap[i][j + 1] * this.yScale, (j + 1) - this.mapCentre);
+                Vector3f v11 = new Vector3f((i + 1) - this.mapCentre, this.heightMap[i + 1][j + 1] * this.yScale, (j + 1) - this.mapCentre);
 
                 tris.add(new Triangle(v00, v10, v01, c));
                 tris.add(new Triangle(v10, v11, v01, c));
@@ -37,14 +55,14 @@ public class Map {
     }
 
 	// Generating noise map
-    public double[][] generateNoise(int size) {
+    public float[][] generateNoise(int size) {
         Noise noise = new Noise();
         
-        double[][] array = new double[size][size];
+        float[][] array = new float[size][size];
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                array[i][j] = noise.noise(i * 0.05, j * 0.05, 1);
+                array[i][j] = noise.noise(i * 0.05f, j * 0.05f, 1f);
             }
         }
 

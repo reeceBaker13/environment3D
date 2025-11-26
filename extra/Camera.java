@@ -1,32 +1,25 @@
 public class Camera {
     // Camera variables
-    private double heading;
-    private double pitch;
-    private double zoom;
-    
-    // Mouse variables
-    private int lastMouseX;
-    private int lastMouseY;
+    public float yaw;
+    public float pitch;
 
-    // Matrices
-    private Matrix3 headingMatrix;
-    private Matrix3 pitchMatrix;
-    private Matrix3 zoomMatrix;
-    private Matrix3 translationMatrix;
+    public float x;
+    public float y;
+    public float z;
 
     // Constructor
     public Camera() {
-        this.heading = 3 * Math.PI / 4;
-        this.pitch = 7 * Math.PI / 4;
-        this.zoom = 5.0;
+        this.yaw = (float) -90;//(1 * Math.PI / 4);
+        this.pitch = (float) 200;
 
-        this.lastMouseX = -1;
-        this.lastMouseY = -1;
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
     }
 
     // Getters & Setters
-    public double getHeading() {
-        return this.heading;
+    public float getYaw() {
+        return this.yaw;
     }
 
 }
