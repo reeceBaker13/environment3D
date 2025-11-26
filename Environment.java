@@ -13,83 +13,36 @@ public class Environment {
 
     // Terrain variables
     private List<Triangle> terrainTris;								// List of triangles representing the map
-	private double[][] heightMap;									// Array of heights across the map
+    private Map map;
 
-    private final int terrainSize = 1000;							// Side length of the map (number of squares)
-    private final double yScale = 20;								// Vertical scale [mountain intensity]
-    private final double half = (terrainSize - 1) / 2.0;			// Length of half the scaled map
-    
-    private boolean[] highlight;									// Array of booleans on if the player is at that triangle (two/zero occupied at a time)
+    private final int terrainSize = 500;							// Side length of the map (number of squares)
+    private final float yScale = 20f;								// Vertical scale [mountain intensity]
 
     // Camera variables
-    private double heading = 3 * Math.PI / 4;						// Horizontal rotation
-    private double pitch = 7 * Math.PI / 4;							// Vertical rotation
-    private double zoom = 5.0;										// Zoom (bigger the closer)
-
     private int lastMouseX = -1;									// Previous mouse x position (-1 is no mouse movement)
     private int lastMouseY = -1;									// Previous mouse y position (-1 is no mouse movement)
 
     // Player movement variables
-    private int playerX = 0;										// X coordinate of player
-    private int playerZ = 0;										// Z coordinate of player
-
-	private double elevation = 0;									// Elevation of player
+	private float elevation = 0;									// Elevation of player
 
     private boolean wPressed = false;								// If VK_W is pressed
     private boolean sPressed = false;								// If VK_W is pressed
     private boolean aPressed = false;								// If VK_W is pressed
 	private boolean dPressed = false;								// If VK_W is pressed
-    
-    private int moveX = 0;											// Players next X coordinate relative to itself
-    private int moveZ = 0;											// Players next Z coordinate relative to itself
+    private boolean spacePressed = false;
+    private boolean shiftPressed = false;
 
 	// General variables
 	private final int gameSpeed = 32;								// Time between game refreshes
 
+    private boolean[] highlight;
+
     // Constructor
     public Environment() {
-        this.terrainTris = generateTriangles(this.terrainSize);
-        this.highlight = new boolean[this.terrainTris.size()];
-    }
-
-    // Generating triangles for the map
-    public List<Triangle> generateTriangles(int size) {
-        // Getting map of heights
-        this.heightMap = generateNoise(size);
-
-        // Creating 2 triangles for each square on the grid
-        List<Triangle> tris = new ArrayList<>();
-        for (int i = 0; i < size - 1; i++) {
-        	for (int j = 0; j < size - 1; j++) {
-                float shade = (float) ((heightMap[i][j] + 1) / 2.0);
-                Color c = new Color(shade, shade, shade);
-
-                Vertex v00 = new Vertex(i - half, heightMap[i][j] * yScale, j - half);
-                Vertex v10 = new Vertex((i + 1) - half, heightMap[i + 1][j] * yScale, j - half);
-                Vertex v01 = new Vertex(i - half, heightMap[i][j + 1] * yScale, (j + 1) - half);
-                Vertex v11 = new Vertex((i + 1) - half, heightMap[i + 1][j + 1] * yScale, (j + 1) - half);
-
-                tris.add(new Triangle(v00, v10, v01, c));
-                tris.add(new Triangle(v10, v11, v01, c));
-            }
-        }
-
-        return tris;
-    }
-
-	// Generating noise map
-    public double[][] generateNoise(int size) {
-        Noise noise = new Noise();
+        map = new Map(this.terrainSize, this.yScale);
+        this.terrainTris = map.generateTriangles();
         
-        double[][] array = new double[size][size];
-
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                array[i][j] = noise.noise(i * 0.05, j * 0.05, 1);
-            }
-        }
-
-        return array;
+        this.highlight = new boolean[this.terrainTris.size()];
     }
 
 	// Main code
@@ -109,49 +62,20 @@ public class Environment {
 			int[] fbPixels;
 			float[] zBuffer;
             Renderer renderer = new Renderer();
+			Player player;
 
             
 			// Timer that updates player movement
             Timer movementTimer = new Timer(gameSpeed, e -> {
-                moveX = 0;
-                moveZ = 0;
-				
-				int direction = (int) Math.round((heading % (2 * Math.PI)) / (Math.PI / 2));
+				player.updatePosition(0.5f, wPressed, aPressed, sPressed, dPressed, spacePressed, shiftPressed);
 
-				switch (direction) {
-					case 4:
-					case 0:
-						if (sPressed) moveZ += 1;
-						if (wPressed) moveZ -= 1;
-						if (dPressed) moveX += 1;
-						if (aPressed) moveX -= 1;
-						break;
-					case 1:
-						if (dPressed) moveZ += 1;
-						if (aPressed) moveZ -= 1;
-						if (wPressed) moveX += 1;
-						if (sPressed) moveX -= 1;
-						break;
-					case 2:
-						if (wPressed) moveZ += 1;
-						if (sPressed) moveZ -= 1;
-						if (aPressed) moveX += 1;
-						if (dPressed) moveX -= 1;
-						break;
-					case 3:
-						if (aPressed) moveZ += 1;
-						if (dPressed) moveZ -= 1;
-						if (sPressed) moveX += 1;
-						if (wPressed) moveX -= 1;
-						break;
-				}
+                int x = (int)Math.floor(player.getPosition().x + map.getMapCentre());
+                int z = (int)Math.floor(player.getPosition().z + map.getMapCentre());
 
-                if (moveX != 0 || moveZ != 0) {
-                    playerX += moveX;
-                    playerZ += moveZ;
-                    repaint();
+                if (x < terrainSize && z < terrainSize && x >= 0 && z >= 0) {
+                    player.updateY(map.getHeightMap()[x][z] * map.getYScale());
                 }
-
+				repaint();
             });
 
 			// Controls and listeners
@@ -163,6 +87,9 @@ public class Environment {
 				// Setting background colour
 				setBackground(Color.BLACK);
 
+				// Player
+				player = new Player(0, 5, 0, 20);
+
 				// Registers mouse dragging
                 addMouseMotionListener(new MouseMotionAdapter() {
                     public void mouseDragged(MouseEvent e) {
@@ -170,9 +97,7 @@ public class Environment {
                             int dx = e.getX() - lastMouseX;
                             int dy = e.getY() - lastMouseY;
 
-                            // Sensitivity
-                            heading += dx * 0.01;
-                            pitch -= dy * 0.01;
+							player.turn(dx, dy);
 
                             repaint();
                         }
@@ -195,13 +120,6 @@ public class Environment {
                     }
                 });
 
-                // Mouse wheel for zoom
-                addMouseWheelListener(e -> {
-                    zoom += -e.getPreciseWheelRotation() * 0.75;
-                    zoom = Math.max(1, Math.min(zoom, 50)); // clamp
-                    repaint();
-                });
-
                 // Key bindings for movement
                 InputMap im = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
                 ActionMap am = getActionMap();
@@ -214,6 +132,10 @@ public class Environment {
                 im.put(KeyStroke.getKeyStroke("released A"), "releaseA");
                 im.put(KeyStroke.getKeyStroke("D"), "pressD");
                 im.put(KeyStroke.getKeyStroke("released D"), "releaseD");
+				im.put(KeyStroke.getKeyStroke("SPACE"), "pressSpace");
+				im.put(KeyStroke.getKeyStroke("released SPACE"), "releaseSpace");
+				im.put(KeyStroke.getKeyStroke("L"), "pressShift");
+				im.put(KeyStroke.getKeyStroke("released L"), "releaseShift");
 
                 am.put("pressW", new AbstractAction() { public void actionPerformed(ActionEvent e) { wPressed = true; }});
                 am.put("releaseW", new AbstractAction() { public void actionPerformed(ActionEvent e) { wPressed = false; }});
@@ -223,6 +145,10 @@ public class Environment {
                 am.put("releaseA", new AbstractAction() { public void actionPerformed(ActionEvent e) { aPressed = false; }});
                 am.put("pressD", new AbstractAction() { public void actionPerformed(ActionEvent e) { dPressed = true; }});
                 am.put("releaseD", new AbstractAction() { public void actionPerformed(ActionEvent e) { dPressed = false; }});
+                am.put("pressSpace", new AbstractAction() { public void actionPerformed(ActionEvent e) { spacePressed = true; }});
+                am.put("releaseSpace", new AbstractAction() { public void actionPerformed(ActionEvent e) { spacePressed = false; }});
+                am.put("pressShift", new AbstractAction() { public void actionPerformed(ActionEvent e) { shiftPressed = true; }});
+                am.put("releaseShift", new AbstractAction() { public void actionPerformed(ActionEvent e) { shiftPressed = false; }});
 
 				// Starting player movement
                 movementTimer.start();
@@ -242,46 +168,36 @@ public class Environment {
 				Arrays.fill(fbPixels, 0);
 				Arrays.fill(zBuffer, Float.NEGATIVE_INFINITY);
 
-				// Managing how the map should be transformed based on camera
-                Matrix3 headingTransform = new Matrix3(new double[] { Math.cos(heading), 0, -Math.sin(heading), 0, 1, 0, Math.sin(heading), 0, Math.cos(heading) });
-                Matrix3 pitchTransform = new Matrix3(new double[] {
-                    1, 0, 0,
-                    0, Math.cos(pitch), Math.sin(pitch),
-                    0, -Math.sin(pitch), Math.cos(pitch)
-                });
-                Matrix3 scaleMatrix = new Matrix3(new double[] {
-                    zoom, 0, 0,
-                    0, zoom, 0,
-                    0, 0, zoom
-                });
-                Matrix3 transform = headingTransform.multiply(pitchTransform).multiply(scaleMatrix);
-
-                // Updating which triangles are highlighted
+                // Resetting highlight
                 Arrays.fill(highlight, false);
 
-                int i = (int)Math.floor(playerX + half);
-                int j = (int)Math.floor(playerZ + half);
+                int i = (int)Math.floor(player.getPosition().x + map.getMapCentre());
+                int j = (int)Math.floor(player.getPosition().z + map.getMapCentre());
 
                 if (i >= 0 && j >= 0 && i < terrainSize - 1 && j < terrainSize - 1) {
                     int idx = i * (terrainSize - 1) + j;
+
+                    // Updating highlight booleans based on player position
                     highlight[idx * 2] = true;
                     highlight[idx * 2 + 1] = true;
 
 					// Getting elevation
-					elevation = -1 * heightMap[i][j] * yScale;
+					elevation = map.getHeightMap()[i][j] * yScale;
                 } else {
 					elevation = 0;
 				}
 
 				// Rendering triangles and image
-                renderer.render(terrainTris, transform, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight, playerX, playerZ);
+                renderer.render(terrainTris, player, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight);
                 g2.drawImage(framebuffer, 0, 0, getWidth(), getHeight(), null);
 
 				// Drawing elevation & coordinates
 				g2.setColor(Color.WHITE);
 				g2.setFont(new Font("Arial", Font.BOLD, 14));
-				g2.drawString("Elevation: " + String.format("%.2f", elevation), 10, 20);
-				g2.drawString("X: " + playerX + "   Z: " + playerZ, 10, 40);
+				g2.drawString("Yaw: " + String.format("%.2f", player.getCamera().yaw), 10, 20);
+				g2.drawString("Pitch: " + String.format("%.2f", player.getCamera().pitch), 10, 40);
+				g2.drawString(String.format("X: %.2f    Y: %.2f    Z: %.2f", player.getPosition().x, player.getPosition().y, player.getPosition().z), 10, 60);
+				g2.drawString("Elevation: " + String.format("%.2f", elevation), 10, 80);
 
             }
 
