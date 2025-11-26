@@ -49,7 +49,6 @@ public class Player {
 
 		// Camera
 		this.camera.x = this.position.x;
-		this.camera.y = this.position.y + EYE_HEIGHT;
 		this.camera.z = this.position.z;
 	}
 
@@ -77,7 +76,6 @@ public class Player {
 
         // Camera
         this.camera.x = this.position.x;
-        this.camera.y = this.position.y + EYE_HEIGHT;
         this.camera.z = this.position.z;
     }
 
