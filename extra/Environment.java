@@ -177,7 +177,7 @@ public class Environment {
                 if (i >= 0 && j >= 0 && i < terrainSize - 1 && j < terrainSize - 1) {
                     int idx = i * (terrainSize - 1) + j;
 
-                    //testing###
+                    // Updating highlight booleans based on player position
                     highlight[idx * 2] = true;
                     highlight[idx * 2 + 1] = true;
 
