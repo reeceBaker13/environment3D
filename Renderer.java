@@ -6,36 +6,40 @@ import java.awt.Color;
 public class Renderer {
 
     // Light
-    private static final Vertex lightDir = new Vertex(0.5, 5.0, 0.5);
+    private static final Vector3f lightDir = new Vector3f(0.5f, 5.0f, 0.5f);
     private static final float lLen = (float) Math.sqrt(lightDir.getX()*lightDir.getX() + lightDir.getY()*lightDir.getY() + lightDir.getZ()*lightDir.getZ());
     private static final float lx = (float) lightDir.getX() / lLen;
     private static final float ly = (float) lightDir.getY() / lLen;
     private static final float lz = (float) lightDir.getZ() / lLen;
-    private static final float brightness = 10f;
+    private static final float brightness = 6f;
+
+	// Perspective
+	private static final float minFov = 60f;
+	private static final float maxFov = 90f;
 
 	// Culling
 	private static final double MAX_RENDER_DISTANCE = 80;
 
-    public void render(List<Triangle> tris, Matrix3 transform, int[] pixels, float[] zBuffer, int width, int height, boolean[] highlight, int playerX, int playerZ) {
+    public void render(List<Triangle> tris, Player player, int[] pixels, float[] zBuffer, int width, int height, boolean[] highlight) {
         for (int i = 0; i < tris.size(); i++) {
             Triangle t = tris.get(i);
-            Color useColor = highlight[i] ? Color.RED : t.getColor();
-            this.renderTriangle(t, transform, pixels, width, height, zBuffer, useColor, playerX, playerZ);
+            Color useColor = highlight[i] ? Color.RED : t.color;
+            this.renderTriangle(t, player, getViewDirection(player.getCamera()), pixels, width, height, zBuffer, useColor);
         }
     }
 
     private void renderTriangle(
-        Triangle t, 
-        Matrix3 transform, 
+        Triangle t,
+        Player player,
+        Vector3f viewDirection,
         int[] pixels,
 		int width, int height,
         float[] zBuffer,
-        Color useColor,
-        int playerX, int playerZ
+        Color useColor
     ) {
 		// Culling
-		float dx = (float) (t.getCentre().getX() - playerX);
-		float dz = (float) (t.getCentre().getZ() - playerZ);
+		float dx = (float) (t.centre.getX() - player.getPosition().x);
+		float dz = (float) (t.centre.getZ() - player.getPosition().z);
 		float distanceSquared = dx * dx + dz * dz;
 
 		// Skipping if too far away
@@ -43,10 +47,18 @@ public class Renderer {
 			return;
 		}
 
+        // if (isBehindPlayer(t, player, viewDirection)) {
+        //     return;
+        // }
+
         // Getting triangle vertices
-        Vertex v1 = transform.transform(t.getVertex1(), playerX, playerZ);
-        Vertex v2 = transform.transform(t.getVertex2(), playerX, playerZ);
-        Vertex v3 = transform.transform(t.getVertex3(), playerX, playerZ);
+        Vector3f v1 = toCameraSpace(t.v1, player, player.getCamera(), width, height);
+        Vector3f v2 = toCameraSpace(t.v2, player, player.getCamera(), width, height);
+        Vector3f v3 = toCameraSpace(t.v3, player, player.getCamera(), width, height);
+        
+        if (v1 == null || v2 == null || v3 == null) {
+            return;
+        }
 
         // Centering triangles
         v1.setX(v1.getX() + width / 2);
@@ -57,7 +69,7 @@ public class Renderer {
         v3.setY(v3.getY() + height / 2);
 
         // Normal
-        Vertex wnorm = t.getNormal();
+        Vector3f wnorm = t.normal;
 
         // Dot product for brightness
         float angleCos = (float) Math.max(0.2, wnorm.getX() * lx + wnorm.getY() * ly + wnorm.getZ() * lz);
@@ -89,14 +101,73 @@ public class Renderer {
     private static Color getShade(Color color, float shade) {
         shade *= brightness;
 
-        float redLinear = (float) Math.pow(color.getRed(), 2.4) * shade;
-        float greenLinear = (float) Math.pow(color.getGreen(), 2.4) * shade;
-        float blueLinear = (float) Math.pow(color.getBlue(), 2.4) * shade;
-
-        int red = (int) Math.min(Math.max(0, (int) (350 - color.getRed() * shade)), 255);
-        int green = (int) Math.min(Math.max(0, (int) (350 - color.getGreen() * shade)), 255);
-        int blue = (int) Math.min(Math.max(0, (int) (350 - color.getBlue() * shade)), 255);
+        int red = (int) Math.min((int) (color.getRed() * shade), 255);
+        int green = (int) Math.min((int) (color.getGreen() * shade), 255);
+        int blue = (int) Math.min((int) (color.getBlue() * shade), 255);
 
         return new Color(red, green, blue);
+    }
+
+    private Vector3f toCameraSpace(Vector3f v, Player player, Camera cam, int width, int height) {
+        float radYaw = (float) Math.toRadians(cam.yaw);
+        float radPitch = (float) -Math.toRadians(cam.pitch);
+		
+        float x = (float) (v.getX() - cam.x);
+        float y = (float) (v.getY() - cam.y);
+        float z = (float) (v.getZ() - cam.z);
+
+        float cosY = (float) Math.cos(radYaw);
+        float sinY = (float) Math.sin(radYaw);
+        
+        float x2 = x * cosY + z * sinY;
+        float z2 = -x * sinY + z * cosY;
+
+        float cosP = (float) Math.cos(-radPitch);
+        float sinP = (float) Math.sin(-radPitch);
+
+        float y2 = y * cosP + z2 * sinP;
+        float z3 = -y * sinP + z2 * cosP;
+
+        float near = 0.1f;
+        if (-z3 < near) {
+            return null;
+        }
+
+        // Perspective projection
+        float f = width * 0.7f;  // you can tune this like FOV
+
+        float sx = (x2 / -z3) * f;
+        float sy = (y2 / -z3) * f;
+
+        if (Math.abs(sx) > width * 3 || Math.abs(sy) > height * 3) {
+            return null;
+        }
+
+        return new Vector3f(sx, sy, z3);
+
+        // if (z3 > 0) {
+        //     return null;
+        // } else {
+        //     return new Vector3f(x2 * 15, y2 * 20, z3 * 1);
+        // }
+
+    }
+    
+    private Vector3f getViewDirection(Camera cam) {
+        float radYaw = (float) -Math.toRadians(cam.yaw);
+        float radPitch = (float) Math.toRadians(cam.pitch);
+
+        float x = (float) Math.sin(radYaw);
+        float z = (float) Math.cos(radYaw);
+
+        return new Vector3f(x, 0, z); 
+    }
+
+    private boolean isBehindPlayer(Triangle t, Player player, Vector3f viewDirection) {
+        Vector3f triangleCentre = new Vector3f((t.centre.x >= player.getPosition().x ? t.centre.x - 5 : t.centre.x + 5), 0, (t.centre.z >= player.getPosition().z ? t.centre.z - 5 : t.centre.z + 5));
+        Vector3f toTriangle = triangleCentre.sub(player.getPosition());
+        Vector3f normal = toTriangle.normalize();
+		normal.y = 0;
+        return (viewDirection.dot(normal) < 0);
     }
 }
