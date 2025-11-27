@@ -33,8 +33,8 @@ public class Environment {
 	// Main code
     public void start() {
         JFrame frame = new JFrame();
-        frame.setUndecorated(true);
-        frame.setBackground(new Color(0, 0, 0, 0));
+        frame.setUndecorated(false);
+        frame.setBackground(new Color(0, 0, 0, 255));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         Container pane = frame.getContentPane();
         pane.setLayout(new BorderLayout());
@@ -53,7 +53,7 @@ public class Environment {
 			// Controls and listeners
             {
 				// Getting window focus
-                setOpaque(false);
+                setOpaque(true);
                 setFocusable(true);
                 requestFocusInWindow(true);
 
