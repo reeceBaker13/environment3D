@@ -4,6 +4,7 @@ public class Player {
 
     private final float accel = 1f;
 	private final float friction = 0.6f;
+    private final float sprintModifier = 2f;
 
     private final Camera camera;
 	private static final float SENSITIVITY = 0.1f;
@@ -27,13 +28,15 @@ public class Player {
         return this.position;
     }
 
-	public void updatePosition(float dt, float xAxis, float yAxis, boolean space, boolean shift) {
+	public void updatePosition(float dt, float xAxis, float yAxis, boolean space, boolean shift, boolean sprinting) {
 		float rad = (float) Math.toRadians(this.camera.yaw);
 
 		Vector3f forward = new Vector3f((float) Math.sin(rad), 0, (float) -Math.cos(rad));
 		Vector3f right = new Vector3f((float) Math.cos(rad), 0, (float) Math.sin(rad));
 
 		Vector3f acceleration = new Vector3f(0, 0, 0);
+
+        if (sprinting) { forward.mul(sprintModifier); right.mul(sprintModifier); }
 
 		acceleration.add(forward.mul(accel).mul(yAxis));
 		acceleration.add(right.mul(accel).mul(xAxis));
@@ -52,13 +55,15 @@ public class Player {
 		this.camera.z = this.position.z;
 	}
 
-    public void updatePosition(float dt, boolean W, boolean S, boolean A, boolean D, boolean space, boolean shift) {
+    public void updatePosition(float dt, boolean W, boolean S, boolean A, boolean D, boolean space, boolean shift, boolean sprinting) {
         float rad = (float) Math.toRadians(this.camera.yaw);
 
         Vector3f forward = new Vector3f((float) Math.sin(rad), 0, (float) -Math.cos(rad));
         Vector3f right = new Vector3f((float) Math.cos(rad), 0, (float) Math.sin(rad));
 
         Vector3f acceleration = new Vector3f(0, 0, 0);
+
+        if (sprinting) { forward.mul(sprintModifier); right.mul(sprintModifier); }
 
         if (W) acceleration.add(forward.mul(-accel));
         if (S) acceleration.add(forward.mul(accel));

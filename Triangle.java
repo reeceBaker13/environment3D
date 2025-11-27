@@ -19,9 +19,9 @@ public class Triangle {
     }
 
     private Vector3f computerNormal(Vector3f v1, Vector3f v2, Vector3f v3) {
-        float wx = (float) ((v2.getY() - v1.getY()) * (v3.getZ() - v1.getZ())) - (float) ((v2.getZ() - v1.getZ()) * (v3.getY() - v1.getY()));
-        float wy = (float) ((v2.getZ() - v1.getZ()) * (v3.getX() - v1.getX())) - (float) ((v2.getX() - v1.getX()) * (v3.getZ() - v1.getZ()));
-        float wz = (float) ((v2.getX() - v1.getX()) * (v3.getY() - v1.getY())) - (float) ((v2.getY() - v1.getY()) * (v3.getX() - v1.getX()));
+        float wx = ((v2.y - v1.y) * (v3.z - v1.z)) - ((v2.z - v1.z) * (v3.y - v1.y));
+        float wy = ((v2.z - v1.z) * (v3.x - v1.x)) - ((v2.x - v1.x) * (v3.z - v1.z));
+        float wz = ((v2.x - v1.x) * (v3.y - v1.y)) - ((v2.y - v1.y) * (v3.x - v1.x));
 
         float len = (float) Math.sqrt(wx*wx + wy*wy + wz*wz);
         wx /= len;
@@ -32,9 +32,9 @@ public class Triangle {
     }
 
 	private Vector3f computeCentre(Vector3f v1, Vector3f v2, Vector3f v3) {
-		float cx = (float) (v1.getX() + v2.getX() + v3.getX()) / 3;
-		float cy = (float) (v1.getY() + v2.getY() + v3.getY()) / 3;
-		float cz = (float) (v1.getZ() + v2.getZ() + v3.getZ()) / 3;
+		float cx = (v1.x + v2.x + v3.x) / 3;
+		float cy = (v1.y + v2.y + v3.y) / 3;
+		float cz = (v1.z + v2.z + v3.z) / 3;
 
 		return new Vector3f(cx, cy, cz);
 	}

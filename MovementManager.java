@@ -2,10 +2,7 @@ import net.java.games.input.Component;
 import net.java.games.input.Controller;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
+import java.awt.event.*;
 
 public class MovementManager {
     private boolean wPressed = false;								// If VK_W is pressed
@@ -14,6 +11,7 @@ public class MovementManager {
     private boolean dPressed = false;								// If VK_W is pressed
     private boolean spacePressed = false;
     private boolean shiftPressed = false;
+    private boolean ctrlPressed = false;
 
     private Controller controller;
 
@@ -51,7 +49,7 @@ public class MovementManager {
                 }
             }
 
-            player.updatePosition(0.5f, xAxis, yAxis, spacePressed, shiftPressed);
+            player.updatePosition(0.5f, xAxis, yAxis, spacePressed, shiftPressed, ctrlPressed);
 
             updatePlayerElevation();
         });
@@ -75,7 +73,7 @@ public class MovementManager {
         });
 
         final Timer movementTimerKeyboard = new Timer(gameSpeed, e -> {
-            player.updatePosition(0.5f, wPressed, sPressed, aPressed, dPressed, spacePressed, shiftPressed);
+            player.updatePosition(0.5f, wPressed, sPressed, aPressed, dPressed, spacePressed, shiftPressed, ctrlPressed);
 
             updatePlayerElevation();
         });
@@ -130,8 +128,10 @@ public class MovementManager {
             im.put(KeyStroke.getKeyStroke("released D"), "releaseD");
             im.put(KeyStroke.getKeyStroke("SPACE"), "pressSpace");
             im.put(KeyStroke.getKeyStroke("released SPACE"), "releaseSpace");
-            im.put(KeyStroke.getKeyStroke("L"), "pressShift");
-            im.put(KeyStroke.getKeyStroke("released L"), "releaseShift");
+            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK), "pressShift");
+            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, 0, true), "releaseShift");
+            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONTROL, InputEvent.CTRL_DOWN_MASK), "pressCtrl");
+            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONTROL, 0, true), "releaseCtrl");
 
             am.put("pressW", new AbstractAction() {
                 public void actionPerformed(ActionEvent e) {
@@ -193,6 +193,16 @@ public class MovementManager {
                     shiftPressed = false;
                 }
             });
+            am.put("pressCtrl", new AbstractAction() {
+                public void actionPerformed(ActionEvent e) {
+                    ctrlPressed = true;
+                }
+            });
+            am.put("releaseCtrl", new AbstractAction() {
+                public void actionPerformed(ActionEvent e) {
+                    ctrlPressed = false;
+                }
+            });
 
             movementTimerKeyboard.start();
             movementTimerController.stop();
@@ -205,13 +215,46 @@ public class MovementManager {
     }
 
     private void updatePlayerElevation() {
+        float elevation = getElevation();
+        player.updateY(elevation);
+        panel.repaint();
+    }
+
+    private float getElevation() {
         int x = (int) Math.floor(player.getPosition().x + map.getMapCentre());
         int z = (int) Math.floor(player.getPosition().z + map.getMapCentre());
 
-        if (x < map.getMapSize() && z < map.getMapSize() && x >= 0 && z >= 0) {
-            player.updateY(map.getHeightMap()[x][z] * map.getYScale());
+        if (x >= 0 && z >= 0 && x < map.getMapSize() - 1 && z < map.getMapSize() - 1) {
+            int idx = x * (map.getMapSize() - 1) + z;
+            Triangle t = map.getMap().get(idx * 2);
+            if (t != null) {
+                Vector3f weights = getWeights(t);
+                return weights.x * t.v1.y + weights.y * t.v2.y + weights.z * t.v3.y;
+            }
         }
-        panel.repaint();
+
+        return 0;
+
+    }
+
+    private Vector3f getWeights(Triangle t) {
+        Vector2f v1 = new Vector2f(t.v2.x - t.v1.x, t.v2.z - t.v1.z);
+        Vector2f v2 = new Vector2f(t.v3.x - t.v1.x, t.v3.z - t.v1.z);
+        Vector2f v3 = new Vector2f(player.getPosition().x - t.v1.x, player.getPosition().z - t.v1.z);
+
+        float d11 = v1.copy().dot(v1);
+        float d22 = v2.copy().dot(v2);
+        float d12 = v1.copy().dot(v2);
+        float d31 = v3.copy().dot(v1);
+        float d32 = v3.copy().dot(v2);
+
+        float denom = d11 * d22 - d12 * d12;
+
+        float v = (d22 * d31 - d12 * d32) / denom;
+        float w = (d11 * d32 - d12 * d31) / denom;
+        float u = 1.0f - v - w;
+
+        return new Vector3f(u, v, w);
     }
 
 }
