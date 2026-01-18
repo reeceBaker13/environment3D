@@ -19,16 +19,16 @@ public class Triangle {
     }
 
     private Vector3f computerNormal(Vector3f v1, Vector3f v2, Vector3f v3) {
-        float wx = ((v2.y - v1.y) * (v3.z - v1.z)) - ((v2.z - v1.z) * (v3.y - v1.y));
-        float wy = ((v2.z - v1.z) * (v3.x - v1.x)) - ((v2.x - v1.x) * (v3.z - v1.z));
-        float wz = ((v2.x - v1.x) * (v3.y - v1.y)) - ((v2.y - v1.y) * (v3.x - v1.x));
+        float nx = ((v2.y - v1.y) * (v3.z - v1.z)) - ((v2.z - v1.z) * (v3.y - v1.y));
+        float ny = ((v2.z - v1.z) * (v3.x - v1.x)) - ((v2.x - v1.x) * (v3.z - v1.z));
+        float nz = ((v2.x - v1.x) * (v3.y - v1.y)) - ((v2.y - v1.y) * (v3.x - v1.x));
 
-        float len = (float) Math.sqrt(wx*wx + wy*wy + wz*wz);
-        wx /= len;
-        wy /= len;
-        wz /= len;
+        float len = (float) Math.sqrt(nx*nx + ny*ny + nz*nz);
+        nx /= len;
+        ny /= len;
+        nz /= len;
 
-        return new Vector3f(wx, wy, wz);
+        return new Vector3f(nx, ny, nz);
     }
 
 	private Vector3f computeCentre(Vector3f v1, Vector3f v2, Vector3f v3) {

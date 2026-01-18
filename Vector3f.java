@@ -18,11 +18,43 @@ public class Vector3f {
 		return this;
 	}
 
+    public Vector3f add(float x, float y, float z) {
+        this.x += x;
+        this.y += y;
+        this.z += z;
+        return this;
+    }
+
 	public Vector3f mul(float c) {
 		this.x *= c;
 		this.y *= c;
 		this.z *= c;
 		return this;
 	}
+
+    public Vector3f normalize() {
+        float length = (float) Math.sqrt(lengthSquared());
+        if (length != 0) {
+            this.x /= length;
+            this.y /= length;
+            this.z /= length;
+        }
+        return this;
+
+    }
+
+    public float lengthSquared() {
+        return x * x + y * y + z * z;
+    }
+
+    public void set(float x, float y, float z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    public void reset() {
+        this.set(0, 0, 0);
+    }
 
 }

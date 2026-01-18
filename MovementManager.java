@@ -2,16 +2,17 @@ import net.java.games.input.Component;
 import net.java.games.input.Controller;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.*;
 
 public class MovementManager {
     private boolean wPressed = false;								// If VK_W is pressed
     private boolean sPressed = false;								// If VK_W is pressed
     private boolean aPressed = false;								// If VK_W is pressed
-    private boolean dPressed = false;								// If VK_W is pressed
-    private boolean spacePressed = false;
+    private boolean dPressed = false;						 		// If VK_W is pressed
+    private boolean jumping = false;
     private boolean shiftPressed = false;
-    private boolean ctrlPressed = false;
+    private boolean controllerSprinting = false;
 
     private Controller controller;
 
@@ -19,41 +20,18 @@ public class MovementManager {
     private int lastMouseX = -1;									// Previous mouse x position (-1 is no mouse movement)
     private int lastMouseY = -1;									// Previous mouse y position (-1 is no mouse movement)
 
+    // Game objects
     private final Player player;
     private final Map map;
-    private final JPanel panel;
 
-    public MovementManager(int gameSpeed, Player player, Map map, JPanel panel) {
+    private final boolean isUsingController;
+
+    public MovementManager(Player player, Map map, JPanel panel) {
         // Game variables
         this.player = player;
         this.map = map;
-        this.panel = panel;
 
-        // Timer that updates player movement
-        final Timer movementTimerController = new Timer(gameSpeed, e -> {
-
-            this.controller.poll();
-            Component[] components = this.controller.getComponents();
-
-            float xAxis = 0f, yAxis = 0f;
-
-            for (Component c : components) {
-                if (c.getIdentifier() == Component.Identifier.Axis.X) {
-                    xAxis = c.getPollData(); // Left/Right movement
-                }
-                if (c.getIdentifier() == Component.Identifier.Axis.Y) {
-                    yAxis = c.getPollData(); // Up/Down movement
-                }
-                if (c.getIdentifier() == Component.Identifier.Button._0 && c.getPollData() == 1.0f) {
-                    System.out.println("Jump!");
-                }
-            }
-
-            player.updatePosition(0.5f, xAxis, yAxis, spacePressed, shiftPressed, ctrlPressed);
-
-            updatePlayerElevation();
-        });
-
+        // Turning timer
         final Timer turningTimerController = new Timer(1, e -> {
             controller.poll();
             Component[] components = controller.getComponents();
@@ -63,26 +41,22 @@ public class MovementManager {
             for (Component c : components) {
                 if (c.getIdentifier() == Component.Identifier.Axis.RX) {
                     xTurn = c.getPollData(); // Left/Right movement
+                    xTurn = Math.abs(xTurn) > 0.1 ? xTurn : 0;
                 }
                 if (c.getIdentifier() == Component.Identifier.Axis.RY) {
                     yTurn = c.getPollData(); // Up/Down movement
+                    yTurn = Math.abs(yTurn) > 0.1 ? yTurn : 0;
                 }
             }
 
             player.turn(-xTurn * 10, -yTurn * 10);
         });
 
-        final Timer movementTimerKeyboard = new Timer(gameSpeed, e -> {
-            player.updatePosition(0.5f, wPressed, sPressed, aPressed, dPressed, spacePressed, shiftPressed, ctrlPressed);
-
-            updatePlayerElevation();
-        });
-
         // Controller
         InputManager inManager = new InputManager();
         this.controller = inManager.getController();
 
-        if (controller == null) {
+        if (this.controller == null) {
 
             // Registers mouse dragging
             panel.addMouseMotionListener(new MouseMotionAdapter() {
@@ -92,8 +66,6 @@ public class MovementManager {
                         int dy = e.getY() - lastMouseY;
 
                         player.turn(dx, dy);
-
-                        panel.repaint();
                     }
 
                     lastMouseX = e.getX();
@@ -114,110 +86,86 @@ public class MovementManager {
                 }
             });
 
-            // Keyboard bindings for movement
-            InputMap im = panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-            ActionMap am = panel.getActionMap();
+            // Keyboard movement
+            KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                    .addKeyEventDispatcher(e -> {
 
-            im.put(KeyStroke.getKeyStroke("W"), "pressW");
-            im.put(KeyStroke.getKeyStroke("released W"), "releaseW");
-            im.put(KeyStroke.getKeyStroke("S"), "pressS");
-            im.put(KeyStroke.getKeyStroke("released S"), "releaseS");
-            im.put(KeyStroke.getKeyStroke("A"), "pressA");
-            im.put(KeyStroke.getKeyStroke("released A"), "releaseA");
-            im.put(KeyStroke.getKeyStroke("D"), "pressD");
-            im.put(KeyStroke.getKeyStroke("released D"), "releaseD");
-            im.put(KeyStroke.getKeyStroke("SPACE"), "pressSpace");
-            im.put(KeyStroke.getKeyStroke("released SPACE"), "releaseSpace");
-            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, InputEvent.SHIFT_DOWN_MASK), "pressShift");
-            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, 0, true), "releaseShift");
-            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONTROL, InputEvent.CTRL_DOWN_MASK), "pressCtrl");
-            im.put(KeyStroke.getKeyStroke(KeyEvent.VK_CONTROL, 0, true), "releaseCtrl");
+                        boolean pressed = e.getID() == KeyEvent.KEY_PRESSED;
+                        boolean released = e.getID() == KeyEvent.KEY_RELEASED;
 
-            am.put("pressW", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    wPressed = true;
-                }
-            });
-            am.put("releaseW", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    wPressed = false;
-                }
-            });
-            am.put("pressS", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    sPressed = true;
-                }
-            });
-            am.put("releaseS", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    sPressed = false;
-                }
-            });
-            am.put("pressA", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    aPressed = true;
-                }
-            });
-            am.put("releaseA", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    aPressed = false;
-                }
-            });
-            am.put("pressD", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    dPressed = true;
-                }
-            });
-            am.put("releaseD", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    dPressed = false;
-                }
-            });
-            am.put("pressSpace", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    spacePressed = true;
-                }
-            });
-            am.put("releaseSpace", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    spacePressed = false;
-                }
-            });
-            am.put("pressShift", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    shiftPressed = true;
-                }
-            });
-            am.put("releaseShift", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    shiftPressed = false;
-                }
-            });
-            am.put("pressCtrl", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    ctrlPressed = true;
-                }
-            });
-            am.put("releaseCtrl", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) {
-                    ctrlPressed = false;
-                }
-            });
+                        if (!pressed && !released) return false;
 
-            movementTimerKeyboard.start();
-            movementTimerController.stop();
-            turningTimerController.stop();
+                        switch (e.getKeyCode()) {
+                            case KeyEvent.VK_W -> wPressed = pressed;
+                            case KeyEvent.VK_A -> aPressed = pressed;
+                            case KeyEvent.VK_S -> sPressed = pressed;
+                            case KeyEvent.VK_D -> dPressed = pressed;
+
+                            case KeyEvent.VK_SHIFT -> shiftPressed = pressed;
+                            case KeyEvent.VK_SPACE -> jumping = pressed;
+                        }
+
+                        return false;
+                    });
+
+            this.isUsingController = false;
         } else {
-            movementTimerController.start();
+            this.isUsingController = true;
             turningTimerController.start();
-            movementTimerKeyboard.stop();
         }
     }
 
-    private void updatePlayerElevation() {
+    public void update(double deltaTime) {
+        if (this.isUsingController) {
+            controllerMovement(deltaTime);
+        } else {
+            keyboardMovement(deltaTime);
+        }
+    }
+
+    private void controllerMovement(double deltaTime) {
+        this.controller.poll();
+        Component[] components = this.controller.getComponents();
+
+        float xAxis = 0f, yAxis = 0f;
+        boolean sprinting = false;
+
+        for (Component c : components) {
+            if (c.getIdentifier() == Component.Identifier.Axis.X) {
+                xAxis = c.getPollData(); // Left/Right movement
+                xAxis = Math.abs(xAxis) > 0.2 ? xAxis : 0;
+            }
+            if (c.getIdentifier() == Component.Identifier.Axis.Y) {
+                yAxis = c.getPollData(); // Up/Down movement
+                yAxis = Math.abs(yAxis) > 0.2 ? yAxis : 0;
+            }
+            if (c.getIdentifier() == Component.Identifier.Button._0 && c.getPollData() == 1.0f) {
+                jumping = true;
+            }
+            if (c.getIdentifier() == Component.Identifier.Button._8 && c.getPollData() == 1.0f) {
+                controllerSprinting = !controllerSprinting;
+            }
+        }
+
+        player.updatePosition(deltaTime, xAxis, yAxis, controllerSprinting);
+
+        updatePlayerElevation(deltaTime);
+    }
+
+    private void keyboardMovement(double deltaTime) {
+        player.updatePosition(deltaTime, wPressed, sPressed, aPressed, dPressed, shiftPressed);
+
+        updatePlayerElevation(deltaTime);
+    }
+
+    private void updatePlayerElevation(double deltaTime) {
+        if (jumping) {
+            player.jump();
+            jumping = false;
+        }
+
         float elevation = getElevation();
-        player.updateY(elevation);
-        panel.repaint();
+        player.updateY(deltaTime, elevation);
     }
 
     private float getElevation() {
@@ -226,35 +174,42 @@ public class MovementManager {
 
         if (x >= 0 && z >= 0 && x < map.getMapSize() - 1 && z < map.getMapSize() - 1) {
             int idx = x * (map.getMapSize() - 1) + z;
-            Triangle t = map.getMap().get(idx * 2);
+            float localX = (player.getPosition().x + map.getMapCentre()) - x;
+            float localZ = (player.getPosition().z + map.getMapCentre()) - z;
+
+            int triOffset;
+            if (localX + localZ < 1.0f) {
+                triOffset = 0;
+            } else {
+                triOffset = 1;
+            }
+
+            Triangle t = map.getMap().get(idx * 2 + triOffset);
+
             if (t != null) {
-                Vector3f weights = getWeights(t);
-                return weights.x * t.v1.y + weights.y * t.v2.y + weights.z * t.v3.y;
+                float fx = player.getPosition().x + map.getMapCentre();
+                float fz = player.getPosition().z + map.getMapCentre();
+
+                int x0 = (int) Math.floor(fx);
+                int z0 = (int) Math.floor(fz);
+
+                float tx = fx - x0;
+                float tz = fz - z0;
+
+                float h00 = map.getHeightMap()[x0][z0];
+                float h10 = map.getHeightMap()[x0 + 1][z0];
+                float h01 = map.getHeightMap()[x0][z0 + 1];
+                float h11 = map.getHeightMap()[x0 + 1][z0 + 1];
+
+                float h0 = h00 * (1 - tx) + h10 * tx;
+                float h1 = h01 * (1 - tx) + h11 * tx;
+
+                return (h0 * (1 - tz) + h1 * tz) * map.getYScale();
             }
         }
 
         return 0;
 
-    }
-
-    private Vector3f getWeights(Triangle t) {
-        Vector2f v1 = new Vector2f(t.v2.x - t.v1.x, t.v2.z - t.v1.z);
-        Vector2f v2 = new Vector2f(t.v3.x - t.v1.x, t.v3.z - t.v1.z);
-        Vector2f v3 = new Vector2f(player.getPosition().x - t.v1.x, player.getPosition().z - t.v1.z);
-
-        float d11 = v1.copy().dot(v1);
-        float d22 = v2.copy().dot(v2);
-        float d12 = v1.copy().dot(v2);
-        float d31 = v3.copy().dot(v1);
-        float d32 = v3.copy().dot(v2);
-
-        float denom = d11 * d22 - d12 * d12;
-
-        float v = (d22 * d31 - d12 * d32) / denom;
-        float w = (d11 * d32 - d12 * d31) / denom;
-        float u = 1.0f - v - w;
-
-        return new Vector3f(u, v, w);
     }
 
 }

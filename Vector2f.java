@@ -16,7 +16,22 @@ public class Vector2f {
 		return new Vector2f(x, y);
 	}
 
+    public Vector2f copy(Vector2f other) {
+        this.x = other.x;
+        this.y = other.y;
+        return this;
+    }
+
 	public float dot(Vector2f other) {
 		return this.x * other.x + this.y * other.y;
 	}
+
+    public void set(float x, float y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public void reset() {
+        this.set(0, 0);
+    }
 }
