@@ -10,12 +10,19 @@ public class Map {
     private final float yScale;
     private final float mapCentre;
 
+    private final int MAX_TRIS;
+    private final TerrainChunk root;
+
     public Map(int mapSize, float yScale) {
         this.mapSize = mapSize;
         this.yScale = yScale;
         this.mapCentre = (mapSize - 1) / 2.0f;
 
         this.map = generateTriangles();
+
+        this.MAX_TRIS = Math.max(mapSize, 64);
+        this.root = new TerrainChunk(-mapCentre, mapCentre, -mapCentre, mapCentre, new ArrayList<>(this.map));
+        subdivide(this.root);
     }
     
     // Getters & Setters
@@ -34,6 +41,8 @@ public class Map {
     public int getMapSize() { return this.mapSize; }
 
     public List<Triangle> getMap() { return this.map; }
+
+    public TerrainChunk getRoot() { return this.root; }
     
     // Generating triangles for the map
     public List<Triangle> generateTriangles() {
@@ -71,5 +80,35 @@ public class Map {
         }
 
         return array;
+    }
+
+    private void subdivide(TerrainChunk node) {
+        if (node.triangles.size() <= MAX_TRIS) {
+            return;
+        }
+
+        node.children = new TerrainChunk[4];
+
+        float midX = (node.minX + node.maxX) / 2f;
+        float midZ = (node.minZ + node.maxZ) / 2f;
+
+        node.children[0] = new TerrainChunk(node.minX, midX, node.minZ, midZ);
+        node.children[1] = new TerrainChunk(midX, node.maxX, node.minZ, midZ);
+        node.children[2] = new TerrainChunk(node.minX, midX, midZ, node.maxZ);
+        node.children[3] = new TerrainChunk(midX, node.maxX, midZ, node.maxZ);
+
+        for (Triangle t : node.triangles) {
+            for (TerrainChunk child : node.children) {
+                if (child.intersects(t)) {
+                    child.triangles.add(t);
+                }
+            }
+        }
+
+        node.triangles.clear();
+
+        for (TerrainChunk child : node.children) {
+            subdivide(child);
+        }
     }
 }

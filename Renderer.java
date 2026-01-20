@@ -12,7 +12,7 @@ public class Renderer {
     private static final float BRIGHTNESS = 5f;
 
     // Culling
-    private static final double MAX_RENDER_DISTANCE = 80;
+    public static final double MAX_RENDER_DISTANCE = 32;
 
     public void render(List<Triangle> tris, Player player, int[] pixels, float[] zBuffer, int width, int height, boolean[] highlight) {
         for (int i = 0; i < tris.size(); i++) {
@@ -30,15 +30,6 @@ public class Renderer {
             float[] zBuffer,
             Color useColor
     ) {
-        // Culling
-        float dx = (t.centre.x - player.getPosition().x);
-        float dz = (t.centre.z - player.getPosition().z);
-        float distanceSquared = dx * dx + dz * dz;
-
-        // Skipping if too far away
-        if (distanceSquared > MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE) {
-            return;
-        }
 
         // Getting triangle vertices
         Vector3f v1 = toCameraSpace(t.v1, player.getCamera(), width, height);

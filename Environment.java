@@ -55,6 +55,7 @@ public class Environment {
 			BufferedImage framebuffer;
 			int[] fbPixels;
 			float[] zBuffer;
+            final TerrainRenderer terrainRenderer = new TerrainRenderer();
             final Renderer renderer = new Renderer();
 
             final Font arialFont = new Font("Arial", Font.BOLD, 14);
@@ -102,7 +103,7 @@ public class Environment {
 				}
 
 				// Rendering triangles and image
-                renderer.render(map.getMap(), player, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight);
+                terrainRenderer.renderChunk(map.getRoot(), renderer, player, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight);
                 g2.drawImage(framebuffer, 0, 0, getWidth(), getHeight(), null);
 
 				// Drawing elevation & coordinates
