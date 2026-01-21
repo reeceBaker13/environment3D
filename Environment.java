@@ -11,57 +11,63 @@ public class Environment {
     // Terrain variables
     private final Map map;
 
-    private final int terrainSize = 500;							// Side length of the map (number of squares)
+    private final int terrainSize = 250;							// Side length of the map (number of squares)
     private final float yScale = 20f;								// Vertical scale [mountain intensity]
 
     // Player movement variables
+    private final Player player;
+    private final MovementManager movementManager;
 	private float elevation = 0;									// Elevation of player
 
 	// General variables
-	private final int gameSpeed;								// Time between game refreshes
-
     private final boolean[] highlight;
+
+    // Swing objects
+    private JPanel renderPanel;
 
     // Constructor
     public Environment() {
         map = new Map(this.terrainSize, this.yScale);
         
         this.highlight = new boolean[this.map.getMap().size()];
-        gameSpeed = 32;
+
+        // Player
+        player = new Player(0, 5, 0);
+
+        // Frame
+        start();
+
+        // Movement manager
+        this.movementManager = new MovementManager(player, map, this.renderPanel);
     }
 
 	// Main code
     public void start() {
         JFrame frame = new JFrame();
-        frame.setUndecorated(true);
-        frame.setBackground(new Color(0, 0, 0, 0));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         Container pane = frame.getContentPane();
         pane.setLayout(new BorderLayout());
+        frame.setVisible(true);
 
         // panel to display render results
-        JPanel renderPanel = new JPanel() {
+        this.renderPanel = new JPanel() {
 
 			BufferedImage framebuffer;
 			int[] fbPixels;
 			float[] zBuffer;
+            final TerrainRenderer terrainRenderer = new TerrainRenderer();
             final Renderer renderer = new Renderer();
-			final Player player;
 
             final Font arialFont = new Font("Arial", Font.BOLD, 14);
 
 			// Controls and listeners
             {
 				// Getting window focus
-                setOpaque(false);
+                setOpaque(true);
                 setFocusable(true);
+                setVisible(true);
                 requestFocusInWindow(true);
-
-				// Player
-				player = new Player(0, 5, 0);
-
-                // Movement manager
-                new MovementManager(gameSpeed, player, map, this);
+                setBackground(new Color(189, 238, 252));
             }
 
 			// Graphics and drawing environment
@@ -97,7 +103,7 @@ public class Environment {
 				}
 
 				// Rendering triangles and image
-                renderer.render(map.getMap(), player, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight);
+                terrainRenderer.renderChunk(map.getRoot(), renderer, player, fbPixels, zBuffer, framebuffer.getWidth(), framebuffer.getHeight(), highlight);
                 g2.drawImage(framebuffer, 0, 0, getWidth(), getHeight(), null);
 
 				// Drawing elevation & coordinates
@@ -126,5 +132,24 @@ public class Environment {
 
         frame.setSize(1920, 1080);
         frame.setVisible(true);
+    }
+
+    public void update(double deltaTime) {
+        movementManager.update(deltaTime);
+        renderPanel.repaint();
+    }
+
+    public static void main(String[] args) {
+        Environment environment = new Environment();
+
+        final long[] lastTime = { System.nanoTime() };
+
+        new Timer(16, e -> {
+            long now = System.nanoTime();
+            double deltaTime = (now - lastTime[0]) / 1_000_000_000.0;
+            lastTime[0] = now;
+
+            environment.update(deltaTime);
+        }).start();
     }
 }
