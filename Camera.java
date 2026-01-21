@@ -17,9 +17,4 @@ public class Camera {
         this.z = 0;
     }
 
-    // Getters & Setters
-    public float getYaw() {
-        return this.yaw;
-    }
-
 }

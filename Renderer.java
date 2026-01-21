@@ -14,7 +14,13 @@ public class Renderer {
     // Culling
     public static final double MAX_RENDER_DISTANCE = 32;
 
-    public void render(List<Triangle> tris, Player player, int[] pixels, float[] zBuffer, int width, int height, boolean[] highlight) {
+    public void render(
+            List<Triangle> tris,
+            Player player,
+            int[] pixels, float[] zBuffer,
+            int width, int height,
+            boolean[] highlight
+    ) {
         for (int i = 0; i < tris.size(); i++) {
             Triangle t = tris.get(i);
             Color useColor = highlight[i] ? Color.RED : t.color;

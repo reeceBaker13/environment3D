@@ -53,7 +53,7 @@ public class MovementManager {
         });
 
         // Controller
-        InputManager inManager = new InputManager();
+        InputManager inManager = new InputManager(panel);
         this.controller = inManager.getController();
 
         if (this.controller == null) {
