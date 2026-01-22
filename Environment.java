@@ -14,9 +14,12 @@ public class Environment {
     private final int terrainSize = 250;							// Side length of the map (number of squares)
     private final float yScale = 20f;								// Vertical scale [mountain intensity]
 
+    // Managers
+    private final MovementManager movementManager;
+    private final InputManager inputManager;
+
     // Player movement variables
     private final Player player;
-    private final MovementManager movementManager;
 	private float elevation = 0;									// Elevation of player
 
 	// General variables
@@ -38,7 +41,8 @@ public class Environment {
         start();
 
         // Movement manager
-        this.movementManager = new MovementManager(player, map, this.renderPanel);
+        this.movementManager = new MovementManager(player, map);
+        this.inputManager = new InputManager(this.renderPanel);
     }
 
 	// Main code
@@ -135,7 +139,8 @@ public class Environment {
     }
 
     public void update(double deltaTime) {
-        movementManager.update(deltaTime);
+        movementManager.update(deltaTime, inputManager.getInputState());
+        inputManager.update();
         renderPanel.repaint();
     }
 

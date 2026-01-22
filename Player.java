@@ -5,15 +5,13 @@ public class Player {
     private final Vector3f forward;
     private final Vector3f right;
 
-    // Jumping forces
-    private float groundY;
-    private final float jumpForce = 9.8f; //??~~##
-    private final float gravity = -9.8f;
+    private static final float jumpForce = 9.8f;
+    private static final float gravity = -9.8f;
     private float upVelocity;
 
     // Movement variables
-    private final float speed = 1.0f;
-    private final float sprintModifier = 3.5f;
+    private static final float speed = 5.0f;
+    private static final float sprintModifier = 3.5f;
     private boolean isJumping = false;
 
 
@@ -42,21 +40,8 @@ public class Player {
         return this.position;
     }
 
-    // Controller update position method
-    public void updatePosition(double dt, float xAxis, float yAxis, boolean sprinting) {
-        applyMovement(dt, xAxis, yAxis, sprinting);
-    }
-
-    // Keyboard update position method
-    public void updatePosition(double dt, boolean W, boolean S, boolean A, boolean D, boolean sprinting) {
-        float yAxis = (W ? -1f : 0f) + (S ? 1f : 0f);
-        float xAxis = (D ? 1f : 0f) + (A ? -1f : 0f);
-
-        applyMovement(dt, xAxis, yAxis, sprinting);
-    }
-
     // Applying movement to player
-    private void applyMovement(double dt, float xAxis, float yAxis, boolean sprinting) {
+    public void move(double dt, float xAxis, float yAxis, boolean sprinting) {
         float rad = (float) Math.toRadians(this.camera.yaw);
 
         this.forward.set((float) Math.sin(rad), 0, (float) -Math.cos(rad));
@@ -86,18 +71,16 @@ public class Player {
         }
     }
 
-	public void updateY(double dt, float y) {
-        this.groundY = y;
-
+	public void updateY(double dt, float ground) {
         if (isJumping) {
             this.position.y += (float) (this.upVelocity * dt);
-            this.upVelocity += (float) (this.gravity * dt);
-            if (this.position.y < this.groundY) {
-                this.position.y = this.groundY;
+            this.upVelocity += (float) (gravity * dt);
+            if (this.position.y < ground) {
+                this.position.y = ground;
                 this.isJumping = false;
             }
         } else {
-            this.position.y = this.groundY;
+            this.position.y = ground;
         }
 
         this.camera.y = this.position.y + EYE_HEIGHT;
